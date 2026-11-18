@@ -1,0 +1,21 @@
+{
+  "name": "last-deal",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "test": "node --test tests/*.test.mjs",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test:browser": "npm run build && node tests/browser.cjs"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vite": "7.3.1",
+    "playwright": "1.62.1"
+  }
+}
