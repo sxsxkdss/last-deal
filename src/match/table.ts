@@ -217,18 +217,40 @@ export class Table {
     this.sync();
     return true;
   }
+  controls(seat: number) {
+    const g = this.G;
+    const p = g.players[seat];
+    const active = !!p && !p.out && this.phase === 'play' && g.winner === null && !g.offer;
+    const ownTurn = active && g.turn === seat && g.roulette === null;
+    return {
+      playable: ownTurn ? p.hand.filter((card) => g.canPlay(card)).map((card) => card.id) : [],
+      canDraw:
+        active &&
+        (g.owes(seat) ||
+          (ownTurn && (g.debt ? g.debt.pi === seat : g.pending > 0 || g.drewBy !== seat))),
+      canPass: ownTurn && g.drewBy === seat && !g.pending && !g.debt && !g.owes(seat),
+      canGamble: active && g.canGamble(seat),
+      canGroup: active && g.rules.multi && !g.horseOn('famine', 'two', seat),
+    };
+  }
+  previewSelection(seat: number, cards: number[]) {
+    if (this.phase !== 'play' || this.G.winner !== null || !this.members[seat]) return null;
+    return selection(this.G, seat, cards);
+  }
   view(seat: number) {
     if (!Number.isInteger(seat) || !this.members[seat]) throw new RangeError('Unknown seat');
     const g = this.G,
       p = g.players[seat],
       lc = g.lastCallLeft(),
       phase = this.phase;
+    const controls = this.controls(seat);
+    const playable = new Set(controls.playable);
     const own = p.hand.map((c) => ({
       id: c.id,
       face: g.f(c),
       unique: !!c.uniq,
       locked: !!c.lock,
-      playable: g.turn === seat && g.canPlay(c),
+      playable: playable.has(c.id),
     }));
     if (phase === 'play' && g.horseOn('death', null, seat) && g.horse.curses[seat] === 'fever') {
       let x = (1 + Math.floor(this.clock.now / 1000)) * 9301 + 49297;
@@ -277,20 +299,13 @@ export class Table {
       owe: g.owes(seat),
       debt: g.debt,
       roulette: g.roulette,
-      canGamble: g.canGamble(seat),
-      canPass: g.drewBy === seat && !g.debt && !g.offer,
+      canGamble: controls.canGamble,
+      canPass: controls.canPass,
       offer: g.offer?.pi === seat ? g.offer : null,
       visitor: g.offer?.pi,
       rules: { multi: g.rules.multi, combos: g.rules.combos },
       drawRun: g.drawRunPi === seat ? g.drawRun : 0,
-      canDraw:
-        phase === 'play' &&
-        !p.out &&
-        !g.offer &&
-        (g.owes(seat) ||
-          (g.turn === seat &&
-            g.roulette === null &&
-            (g.debt?.pi === seat || g.pending > 0 || g.drewBy !== seat))),
+      canDraw: controls.canDraw,
       hope: [p.angel, g.demonChance(seat)],
       effects: {
         horse: g.horse,

@@ -75,6 +75,7 @@ export const EXTRA_CARDS = [
   'deal',
 ];
 export const LAST_CALL = 150;
+export const MAX_STACK = 60;
 // ---- debt match: what a card left in your hand costs you at the end of a deal ----
 export function debtValue(f) {
   if (BAD_VALUE[f.v]) return BAD_VALUE[f.v];
@@ -97,7 +98,7 @@ export const FUSE_TURNS = 3,
   LEECH_MEALS = 3;
 export const isBad = (f) => !!f && f.c === 'x';
 // tokens sold in the shop; price in chips
-export const ATTACK_FACES = new Set(['mirror', 'mul2', 'mul3', 'glass', 'bomb', 'gift', 'sacr']);
+export const ATTACK_FACES = new Set(['mul2', 'mul3', 'glass', 'bomb', 'gift', 'sacr']);
 export const TOKENS = [
   'safe',
   'sharp',

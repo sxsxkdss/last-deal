@@ -9,6 +9,7 @@ import {
   FUSE_HIT,
   FUSE_TURNS,
   LAST_CALL,
+  MAX_STACK,
   LEECH_MEALS,
   SIDE_COLORS,
   cardCode,
@@ -579,7 +580,7 @@ export class Game {
       this.checkFlipBack();
       return true;
     }
-    this.pending *= drum ? 3 : 2;
+    this.pending = Math.min(MAX_STACK, this.pending * (drum ? 3 : 2));
     this.addLog(
       `${p.name} aims at ${t.name}… BANG. ${p.name} takes the stack doubled: +${this.pending}.`,
       'bad',

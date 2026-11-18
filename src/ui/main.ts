@@ -8,6 +8,8 @@ import { COMBOS, comboOf } from '../rules/poker.ts';
 import { CARD_DESC, EXTRA_I18N, NAMES, RULES_I18N, TEXT } from './labels.ts';
 import { fmtLog } from './log.ts';
 import './style.css';
+import './scene/scene.css';
+import type { createTableScene } from './scene/table-scene.ts';
 
 const root = document.querySelector<HTMLElement>('#app')!;
 const escape = (value: unknown) =>
@@ -44,7 +46,38 @@ function resetPreset(key: string) {
   cards = { ...PRESETS[key].cards };
 }
 resetPreset('den');
+let scene: ReturnType<typeof createTableScene> | undefined;
+let loadScene: Promise<typeof createTableScene> | undefined;
+let useScene = true;
+let sceneError = false;
+
+function mountScene(v: View) {
+  const slot = root.querySelector('[data-scene-slot]');
+  if (!slot) return;
+  if (scene) {
+    slot.replaceWith(scene.host);
+    scene.update(v);
+    return;
+  }
+  const game = table;
+  loadScene ??= import('./scene/table-scene.ts').then((module) => module.createTableScene);
+  void loadScene
+    .then((create) => {
+      if (!slot.isConnected || game !== table) return;
+      scene = create(() => sendAction({ k: 'draw' }));
+      mountScene(table.view(seat));
+    })
+    .catch(() => {
+      if (!slot.isConnected || game !== table) return;
+      sceneError = true;
+      message = '3D-сцена недоступна. Открыт HTML-стол.';
+      render();
+    });
+}
+
 function lobby() {
+  scene?.dispose();
+  scene = undefined;
   const check = (row, group) =>
     `<label class="check" title="${escape(row[2])}"><input type="checkbox" data-group="${group}" value="${row[0]}" ${(group === 'rules' ? rules : cards)[row[0]] ? 'checked' : ''}> ${escape(row[1])}</label>`;
   root.innerHTML =
@@ -91,6 +124,8 @@ function start() {
   };
   table = localGame(settings, seeded(seed));
   seat = 0;
+  useScene = true;
+  sceneError = false;
   selected = [];
   message = '';
   curtain = human > 1;
@@ -233,10 +268,16 @@ function render() {
     v.drawRun ? 'Добрано до цвета · ' + v.drawRun : '',
     me.owe ? 'К получению · ' + me.owe : '',
   ].filter(Boolean);
+  const sceneAvailable = v.players.length === 2 && !sceneError;
+  const showScene = sceneAvailable && useScene;
+  const sceneFocus = scene?.host.contains(document.activeElement)
+    ? (document.activeElement as HTMLElement)
+    : null;
   root.innerHTML =
     mast +
-    `<div class="tablehead"><h1>${v.match ? 'Раздача ' + v.match.round : 'Одна раздача'}</h1><div>${night ? 'Ночь' : 'День'} · ${v.dir === 1 ? 'по часовой' : 'против часовой'} <strong id="clock">${clock != null ? Math.ceil(clock / 1000) + ' с' : ''}</strong></div></div>
- <div class="layout"><section class="board"><div class="felt ${night ? 'night' : ''}"><div class="rivals">${v.players.map((p, i) => `<article class="${i === v.turn ? 'active' : ''}"><b>${escape(p.name)}</b> · ${p.count} карт${p.shield ? ' · Бронежилет' : ''}${v.match ? ' · ' + p.debt + '/' + p.limit + ' · ' + p.chips + '¢' : ''}${p.out ? ' · вышел' : ''}<small>${[...p.deals.map((d) => label('deal', d)), ...p.inventory.map((d) => label('item', d)), ...p.tokens.map((d) => label('tok', d)), ...Object.keys(p.fx || {}).map((d) => label('item', d))].map(escape).join(' · ')}</small>${p.backs.length ? '<details><summary>Рубашки</summary>' + p.backs.map((f) => escape(face(f))).join(', ') + '</details>' : ''}</article>`).join('')}</div>
+    `<div class="tablehead"><h1>${v.match ? 'Раздача ' + v.match.round : 'Одна раздача'}</h1><div>${night ? 'Ночь' : 'День'} · ${v.dir === 1 ? 'по часовой' : 'против часовой'} <strong id="clock">${clock != null ? Math.ceil(clock / 1000) + ' с' : ''}</strong>${sceneAvailable ? '<button class="view-toggle" data-do="view">' + (showScene ? 'HTML-стол' : '3D-стол') + '</button>' : ''}</div></div>
+ <div class="layout"><section class="board"><div class="felt ${night ? 'night' : ''} ${showScene ? 'scene-on' : ''}"><div class="rivals">${v.players.map((p, i) => `<article class="${i === v.turn ? 'active' : ''}"><b>${escape(p.name)}</b> · ${p.count} карт${p.shield ? ' · Бронежилет' : ''}${v.match ? ' · ' + p.debt + '/' + p.limit + ' · ' + p.chips + '¢' : ''}${p.out ? ' · вышел' : ''}<small>${[...p.deals.map((d) => label('deal', d)), ...p.inventory.map((d) => label('item', d)), ...p.tokens.map((d) => label('tok', d)), ...Object.keys(p.fx || {}).map((d) => label('item', d))].map(escape).join(' · ')}</small>${p.backs.length ? '<details><summary>Рубашки</summary>' + p.backs.map((f) => escape(face(f))).join(', ') + '</details>' : ''}</article>`).join('')}</div>
+ ${showScene ? '<div data-scene-slot class="table-scene" role="status">Загрузка 3D-стола…</div>' : ''}
  <div class="piles"><button class="pile deck" data-do="draw" ${disabled(!v.canDraw)}><small>КОЛОДА</small><b>${escape(v.nextBack.title || names[v.nextBack.v] || v.nextBack.v)}</b><span>${escape(colors[v.nextBack.c])}</span></button><div class="pile" data-color="${v.top.c}"><small>СБРОС</small><b>${escape(v.top.title || names[v.top.v] || v.top.v)}</b><span>${escape(colors[v.color])}</span></div></div><div class="fx">${fx.map(escape).join(' · ') || '&nbsp;'}</div></div>
  <section class="panel">${actions(v)}<output role="status">${escape(message)}</output></section>
  <section class="panel hand"><h2>${escape(me.name)} · рука</h2>${v.match ? '<small>Шанс ангела ' + v.hope[0] + '% · демона ' + v.hope[1] + '%</small>' : ''}${v.nextFace ? '<p>Шулер · ' + escape(face(v.nextFace)) + '</p>' : ''}
@@ -260,6 +301,8 @@ function render() {
        '<li>' + label('combo', id) + ' · ' + c.d + ' сброс / ' + c.m + ' всем / −' + c.r + ' долга</li>',
    )
    .join('')}</ul></details></aside></div>`;
+  if (showScene) mountScene(v);
+  if (sceneFocus?.isConnected) sceneFocus.focus({ preventScroll: true });
   for (const [key, v] of Object.entries(prev)) {
     const el = document.getElementById(key) as HTMLSelectElement;
     if (el && [...el.options].some((o) => o.value === v)) el.value = v;
@@ -292,6 +335,12 @@ root.addEventListener('click', (ev) => {
   const [k, id, detail] = (el.dataset.do || '').split('/');
   if (k === 'start') {
     start();
+    return;
+  }
+  if (k === 'view') {
+    useScene = !useScene;
+    render();
+    root.querySelector<HTMLButtonElement>('[data-do="view"]')?.focus();
     return;
   }
   if (k === 'hint') {
@@ -365,11 +414,14 @@ root.addEventListener('click', (ev) => {
     default:
       return;
   }
-  const ok = table.dispatch(seat, a);
+  sendAction(a);
+});
+function sendAction(action: Action) {
+  const ok = table.dispatch(seat, action);
   message = ok ? '' : 'Это действие сейчас недоступно.';
   if (ok) selected = [];
   render();
-});
+}
 document.addEventListener('keydown', (ev) => {
   if (!table || curtain || /INPUT|SELECT|BUTTON/.test((ev.target as HTMLElement).tagName)) return;
   const action = ev.code === 'KeyP' ? 'pass' : ['Space', 'KeyD'].includes(ev.code) ? 'draw' : '';

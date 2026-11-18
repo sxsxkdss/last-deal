@@ -1,0 +1,10 @@
+[Unit]
+Description=Poll Git for Last Deal updates
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=3min
+Unit=last-deal-update.service
+
+[Install]
+WantedBy=timers.target

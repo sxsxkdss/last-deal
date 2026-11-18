@@ -1,0 +1,20 @@
+[Unit]
+Description=Build and publish Last Deal from Git
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=last-deal
+Group=last-deal
+StateDirectory=last-deal
+StateDirectoryMode=0755
+Environment=HOME=/var/lib/last-deal
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=-/etc/default/last-deal
+ExecStart=/usr/local/libexec/last-deal-update
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+NoNewPrivileges=yes
+TimeoutStartSec=10min

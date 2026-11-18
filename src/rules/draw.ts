@@ -2,10 +2,10 @@ import { Bot } from './bot.ts';
 import { COLOR_NAME, faceName, other } from './cards.ts';
 import type { Game } from './game.ts';
 
-export function checkFlipBack(this: Game) {
+export function checkFlipBack(this: Game, finishedSeat?: number) {
   const fb = this.flipBack;
   if (!fb || this.winner !== null) return;
-  if (this.seq > fb.seq && this.turn !== fb.pi) {
+  if (this.seq > fb.seq && (this.turn !== fb.pi || finishedSeat === fb.pi)) {
     this.flipBack = null;
     this.side = other(this.side);
     const nf = this.f(this.top);
@@ -65,7 +65,10 @@ export function draw(this: Game, pi) {
     if (d.n) {
       d.n--;
       done = d.n <= 0;
-    } else if (d.until) done = !!(got[0] && this.f(got[0]).c === d.until);
+    } else if (d.until) {
+      // The day and night palettes are disjoint. Test the matching face even if the table flipped.
+      done = got[0]?.L.c === d.until || got[0]?.D.c === d.until;
+    }
     if (d.got >= 300) done = true;
     if (done) {
       this.addLog(

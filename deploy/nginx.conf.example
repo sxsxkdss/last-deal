@@ -1,0 +1,15 @@
+server {
+    listen 8443 ssl;
+    server_name game.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/game.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/game.example.com/privkey.pem;
+
+    root /var/lib/last-deal/current;
+    index index.html;
+
+    location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri $uri/ =404;
+    }
+}

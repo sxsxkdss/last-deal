@@ -1,3 +1,4 @@
+import { MAX_STACK } from './cards.ts';
 import type { Game } from './game.ts';
 
 // ---- deals: the angel (light, by day) and the demon (dark, by night). One active at a time, one of each per match. ----
@@ -202,6 +203,7 @@ export function hit(this: Game, from, to, n) {
   if (this.horseOn('war', 'fury', to)) n += 3;
   if (hasDeal(a, 'mark') && a.markT === to) n += 2;
   if (hasDeal(t, 'mark') && t.markT === from) n += 2;
+  n = Math.min(MAX_STACK, n);
   if (this.hasL(t, 'guardian') && !t.used.guardian) {
     t.used.guardian = true;
     a.oweN = (a.oweN || 0) + n;
@@ -251,6 +253,7 @@ export function takeStack(this: Game, pi, sf) {
     }
     if (hasDeal(a, 'mark') && a.markT === pi) this.pending += 2;
     if (hasDeal(p, 'mark') && p.markT === sf) this.pending += 2;
+    this.pending = Math.min(MAX_STACK, this.pending);
     if (this.hasL(p, 'guardian') && !p.used.guardian && !a.out) {
       p.used.guardian = true;
       const n = this.pending;
@@ -271,6 +274,7 @@ export function takeStack(this: Game, pi, sf) {
       return true;
     }
   }
+  this.pending = Math.min(MAX_STACK, this.pending);
   if (this.hasL(p, 'halo') && !p.used.halo) {
     p.used.halo = true;
     this.pending = Math.ceil(this.pending / 2);

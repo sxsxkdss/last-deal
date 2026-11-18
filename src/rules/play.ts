@@ -4,6 +4,7 @@ import {
   DRAW_VAL,
   EXTRA_CARDS,
   LEAD_DRAW,
+  MAX_STACK,
   cardCode,
   faceName,
   isBad,
@@ -24,6 +25,7 @@ export function play(
   if (idx < 0 || this.winner !== null) return false;
   const card = p.hand[idx];
   if (pi !== this.turn || !this.canPlay(card)) return false;
+  const startingTurn = this.turnNo || 0;
   const face = this.f(card);
   const blank =
     (face.c === 'w' || EXTRA_CARDS.includes(face.v)) &&
@@ -130,7 +132,6 @@ export function play(
     this.chipsWon[pi] += Math.max(1, Math.round((combo.chips * combo.mult) / 10));
   if (
     (!blank && (DRAW_VAL[face.v] || ATTACK_FACES.has(face.v))) ||
-    (face.v === 'echo' && DRAW_VAL[this.f(this.top).v]) ||
     (combo && (combo.m || (this.side === 'D' && combo.d)))
   )
     this.attacked(pi);
@@ -316,7 +317,7 @@ export function play(
       const x = Math.pow(m, k);
       if (this.pending > 0) {
         const before = this.pending;
-        this.pending = Math.min(60, this.pending * x);
+        this.pending = Math.min(MAX_STACK, this.pending * x);
         this.stackFrom = pi;
         this.addLog(
           `${p.name} multiplies the stack: +${before} ×${x} = +${this.pending}.`,
@@ -666,6 +667,7 @@ export function play(
       break;
     }
   }
+  this.pending = Math.min(MAX_STACK, this.pending);
   if (face.v === 'roul' && !blank) this.turn = this.roulette;
   else if (steps >= 0) this.turn = steps === 0 ? pi : this.nextIdx(pi, steps);
   if (steps === 0 && this.turn === pi) {
@@ -675,7 +677,7 @@ export function play(
     this.ev('again', { pi });
   }
   this.applyShield();
-  this.checkFlipBack();
+  this.checkFlipBack(steps >= 0 ? pi : undefined);
   if (this.inflate > 0) this.inflate--;
   if (this.lock > 0) this.lock--;
   if (this.rules.potato !== false && this.winner === null && this.potato && this.side === 'D') {
@@ -715,6 +717,9 @@ export function play(
     );
     this.ev('stack', { k: this.pending, pi: this.turn });
   }
+  // Skips and extra turns can return play to the same seat, without triggering the turn setter.
+  if (steps >= 0 && this.roulette === null && this.turn === pi && (this.turnNo || 0) === startingTurn)
+    this.turnNo = startingTurn + 1;
   this.standingCheck();
   return true;
 }

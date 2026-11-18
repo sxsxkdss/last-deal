@@ -1,0 +1,78 @@
+.table-scene {
+  position: relative;
+  aspect-ratio: 1.95;
+  min-height: 240px;
+  overflow: hidden;
+  isolation: isolate;
+  background: #282e33;
+  border-radius: 7px;
+}
+.table-scene canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+.table-scene canvas:active {
+  cursor: grabbing;
+}
+.table-scene[data-inspect='true'] canvas {
+  cursor: pointer;
+}
+.scene-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: end;
+  gap: 0.35rem;
+  position: absolute;
+  inset: auto 0 0;
+  padding: 0.65rem;
+  pointer-events: none;
+  background: linear-gradient(transparent, #141518de);
+  font-size: 0.84rem;
+}
+.scene-controls button {
+  pointer-events: auto;
+}
+.scene-hint {
+  margin-right: auto;
+  color: #faf1dd;
+}
+.felt.scene-on .piles {
+  padding: 8px 0 0;
+  gap: 8px;
+}
+.felt.scene-on .pile {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  gap: 0.45rem;
+  width: auto;
+  min-height: 0;
+  align-items: baseline;
+  padding: 0.6rem;
+  border-top-width: 3px;
+}
+.felt.scene-on .pile b {
+  font: 700 0.95rem system-ui;
+}
+.felt.scene-on .rivals {
+  margin-bottom: 8px;
+}
+.view-toggle {
+  margin-left: 0.65rem;
+}
+.tablehead > div {
+  text-align: right;
+}
+@media (max-width: 540px) {
+  .table-scene {
+    aspect-ratio: 1.2;
+  }
+  .scene-hint {
+    display: none;
+  }
+}
