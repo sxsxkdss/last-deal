@@ -1668,6 +1668,25 @@ function updateMusicControls() {
     }
   }
 }
+const botProfileLabels = {
+  standard: ['Обычная', 'Standard'], cautious: ['Осторожная', 'Cautious'],
+  aggressive: ['Агрессивная', 'Aggressive'], combos: ['Комбинации', 'Combinations'],
+  debt: ['Контроль долга', 'Debt management'],
+};
+function roomChoices(id, values, initial) {
+  return values.map(value => {
+    const label = document.createElement('label');
+    const input = document.createElement('input');
+    input.type = 'radio'; input.name = id; input.value = value; input.checked = value === initial;
+    const caption = document.createElement('span');
+    caption.textContent = value;
+    label.append(input, caption);
+    $(id).append(label);
+    return { input, caption };
+  });
+}
+const capacityChoices = roomChoices('lbCapacity', ['2', '3', '4', '5', '6'], '6');
+const profileChoices = roomChoices('lbBotProfile', Object.keys(botProfileLabels), 'standard');
 function applyStatic() {
   document.documentElement.lang = LANG;
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
@@ -1683,8 +1702,7 @@ function applyStatic() {
   $('lbPublicLabel').textContent = networkText('Публичная комната', 'Public room');
   $('lbCapacityLabel').textContent = networkText('Мест за столом', 'Seats');
   $('lbBotProfileLabel').textContent = networkText('Стратегия нового бота', 'New bot strategy');
-  const botProfiles = LANG === 'ru' ? ['Обычная', 'Осторожная', 'Агрессивная', 'Комбинации', 'Контроль долга'] : ['Standard', 'Cautious', 'Aggressive', 'Combinations', 'Debt management'];
-  [...$('lbBotProfile').options].forEach((option, i) => { option.textContent = botProfiles[i]; });
+  for (const { input, caption } of profileChoices) caption.textContent = networkText(...botProfileLabels[input.value]);
   drawDirectory();
 }
 function setFx(m) { S.fx = m; saveSettings(); document.body.classList.toggle('lite', m !== 'full'); }
@@ -1752,7 +1770,11 @@ $('roomDirectory').ontoggle = () => {
 $('joinOnline').onsubmit = (event) => { event.preventDefault(); joinRoom($('joinCode').value); };
 $('publicRooms').onclick = (event) => { const button = event.target.closest('[data-room-code]'); if (button) joinRoom(button.dataset.roomCode); };
 $('lbPublic').onchange = (event) => conn.send({ t: 'settings', public: event.target.checked });
-$('lbCapacity').onchange = (event) => conn.send({ t: 'settings', capacity: +event.target.value });
+$('lbCapacity').onchange = (event) => {
+  const capacity = Number(event.target.value);
+  if (lastLobby) syncCapacity(lastLobby);
+  conn.send({ t: 'settings', capacity });
+};
 if (location.protocol === 'https:' || location.protocol === 'http:') {
   $('onlineRooms').classList.remove('hidden');
   const fillInvitation = () => {
@@ -1807,8 +1829,14 @@ $('lbName').addEventListener('input', () => {
   }, 350);
 });
 $('btnRoomStart').onclick = () => conn.send({ t: 'start' });
-$('btnAddBot').onclick = () => conn.send({ t: 'addbot', profile: $('lbBotProfile').value });
+$('btnAddBot').onclick = () => conn.send({ t: 'addbot', profile: $('lbBotProfile').querySelector(':checked').value });
 $('btnRmBot').onclick = () => conn.send({ t: 'rmbot' });
+function syncCapacity(l) {
+  for (const { input } of capacityChoices) {
+    input.checked = Number(input.value) === (l.capacity || 6);
+    input.disabled = Number(input.value) < l.players.length;
+  }
+}
 function renderLobby(l) {
   $('roomInvite').classList.toggle('hidden', !l.code);
   if ($('lbCode').textContent !== l.code) $('shareLink').classList.add('hidden');
@@ -1817,7 +1845,8 @@ function renderLobby(l) {
   $('lbHint').textContent = l.code ? t(l.host ? 'hintHost' : 'hintGuest') : networkText('Добавьте ботов и начните игру.', 'Add bots to start playing.');
   $('lbOnlineConfig').classList.toggle('hidden', !l.code);
   $('lbPublic').checked = !!l.public;
-  $('lbCapacity').value = l.capacity || 6;
+  syncCapacity(l);
+  $('btnRoomStart').classList.toggle('hidden', !l.host);
   $('lbHost').classList.toggle('hidden', !l.host);
   $('lbGuest').classList.toggle('hidden', !!l.host);
   if (document.activeElement !== $('lbName')) $('lbName').value = S.name;
@@ -3429,9 +3458,9 @@ function showSettings() {
   openModal(`<h2>${t('settings')}</h2><div class="settings">
     <div class="set"><span>${t('menuLang')}</span>${seg('stLang', LANG, Object.entries(LANGS))}</div>
     <div class="set"><span>${t('setSound')}</span>${seg('stSound', S.sound ? 1 : 0, [[1, t('on')], [0, t('off')]])}</div>
-    <div class="set"><span>${t('setVolume')}</span>${slider('stVol', S.vol)}</div>
+    <div class="set"><label for="stVol">${t('setVolume')}</label>${slider('stVol', S.vol)}</div>
     <div class="set"><span>${t('setAmbient')}</span>${seg('stAmb', S.ambient === 'off' ? 'off' : 'on', [['on', t('on')], ['off', t('off')]])}</div>
-    <div class="set"><span>${t('setAmbVol')}</span>${slider('stAmbVol', S.ambVol)}</div>
+    <div class="set"><label for="stAmbVol">${t('setAmbVol')}</label>${slider('stAmbVol', S.ambVol)}</div>
     <div class="set"><span>${t('menuFx')}</span>${seg('stFx', S.fx, [['full', t('fxFull')], ['lite', t('fxLite')]])}</div>
     <div class="set"><span>${t('setMusicFx')}</span>${seg('stMusicFx', S.musicFx !== false ? 1 : 0, [[1, t('on')], [0, t('off')]])}</div>
     <div class="set"><span>${t('setShake')}</span>${seg('stShake', S.shake !== false ? 1 : 0, [[1, t('on')], [0, t('off')]])}</div>

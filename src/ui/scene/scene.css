@@ -5,7 +5,7 @@
   overflow: hidden;
   isolation: isolate;
   background: #282e33;
-  border-radius: 7px;
+  border-radius: var(--ui-r);
 }
 .table-scene canvas {
   display: block;
@@ -57,7 +57,7 @@
   border-top-width: 3px;
 }
 .felt.scene-on .pile b {
-  font: 700 0.95rem system-ui;
+  font: 700 0.95rem var(--f-stamp);
 }
 .felt.scene-on .rivals {
   margin-bottom: 8px;

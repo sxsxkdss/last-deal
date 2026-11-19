@@ -22,7 +22,7 @@
     <h1 class="title">Last<br><span>Deal</span></h1>
     <p class="lede" data-i18n="lede"></p>
     <div class="field"><span class="label" data-i18n="language"></span><div class="seg" id="segLang"></div></div>
-    <div class="field"><span class="label" data-i18n="name"></span><input id="pname" type="text" maxlength="14" value="Player"></div>
+    <div class="field"><label class="label" for="pname" data-i18n="name"></label><input id="pname" type="text" maxlength="14" value="Player"></div>
     <div class="section hidden" id="onlineRooms">
       <button type="button" class="btn primary wide" id="btnCreate" data-i18n="createRoom"></button>
       <form class="room-join" id="joinOnline">
@@ -59,35 +59,29 @@
       <input type="text" class="hidden" id="shareLink" readonly>
     </div>
     <p class="lede room-hint" id="lbHint" role="status"></p>
-    <div class="field"><span class="label" data-i18n="yourName"></span><input id="lbName" type="text" maxlength="14"></div>
-    <div class="section"><span class="label" data-i18n="players"></span><div id="lbSeats" style="margin-top:8px"></div></div>
+    <div class="field"><label class="label" for="lbName" data-i18n="yourName"></label><input id="lbName" type="text" maxlength="14"></div>
+    <div class="section"><h2 data-i18n="players"></h2><div id="lbSeats"></div></div>
     <div id="lbHost">
-      <div class="section room-config hidden" id="lbOnlineConfig">
+      <div class="room-config hidden" id="lbOnlineConfig">
         <label class="room-visibility"><input type="checkbox" id="lbPublic"> <span id="lbPublicLabel"></span></label>
-        <div class="room-options">
-          <label class="room-option">
-            <span class="label" id="lbCapacityLabel"></span>
-            <select id="lbCapacity"><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select>
-          </label>
-          <label class="room-option">
-            <span class="label" id="lbBotProfileLabel"></span>
-            <select id="lbBotProfile"><option value="standard"></option><option value="cautious"></option><option value="aggressive"></option><option value="combos"></option><option value="debt"></option></select>
-          </label>
-        </div>
+        <fieldset class="room-choice"><legend class="label" id="lbCapacityLabel"></legend><div class="seg" id="lbCapacity"></div></fieldset>
+        <fieldset class="room-choice"><legend class="label" id="lbBotProfileLabel"></legend><div class="seg" id="lbBotProfile"></div></fieldset>
       </div>
       <div class="section actions-row"><button class="btn" id="btnAddBot" data-i18n="addBot"></button><button class="btn" id="btnRmBot" data-i18n="rmBot"></button></div>
-      <div class="section"><button class="btn primary wide" id="btnRoomStart" data-i18n="startGame"></button></div>
-      <div class="section"><span class="label" data-i18n="matchMode"></span>
+      <div class="section"><h2 data-i18n="matchMode"></h2>
         <div class="modes" id="lbMode"></div>
         <div class="limitrow" id="lbLimitRow"><span class="label" data-i18n="debtLimit"></span><div class="seg" id="lbLimit"></div></div></div>
-      <div class="section"><span class="label" data-i18n="presets"></span><div class="presets" id="lbPresets"></div>
+      <div class="section"><h2 data-i18n="presets"></h2><div class="presets" id="lbPresets"></div>
         <details class="fine" id="lbFine"><summary id="lbFineSum"></summary>
           <span class="label sublabel" data-i18n="rules"></span><div id="lbRules"></div>
           <span class="label sublabel" data-i18n="extraCards"></span><div id="lbCards"></div>
         </details></div>
     </div>
-    <div id="lbGuest" class="section hidden"><span class="label" data-i18n="tableRules"></span><div id="lbRulesView" style="margin-top:8px"></div></div>
-    <div class="msg" id="lbWait"></div>
+    <div id="lbGuest" class="section hidden"><h2 data-i18n="tableRules"></h2><div id="lbRulesView"></div></div>
+    <div class="lobby-ready">
+      <div class="msg" id="lbWait" role="status"></div>
+      <button class="btn primary wide hidden" id="btnRoomStart" aria-describedby="lbWait" data-i18n="startGame"></button>
+    </div>
     <div id="musicLobby"></div>
     <button class="textlink" id="btnLeave" data-i18n="leaveRoom"></button>
   </div>

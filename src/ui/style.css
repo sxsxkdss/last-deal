@@ -1,14 +1,13 @@
+@import '../theme.css';
+
 * {
   box-sizing: border-box;
 }
 body {
   margin: 0;
-  background: #f3f2eb;
-  color: #192e30;
-  font:
-    16px/1.45 'Inter',
-    system-ui,
-    sans-serif;
+  background: var(--ink) var(--noise);
+  color: var(--bone);
+  font: 14px/1.45 var(--f-type);
 }
 main {
   max-width: 1350px;
@@ -19,17 +18,16 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 2px solid #263a3c;
+  border-bottom: 1px dashed var(--paper-2);
   padding: 20px 0;
-  color: #536262;
+  color: var(--paper);
 }
 .brand {
-  font:
-    900 27px/1 'Archivo Black',
-    Arial,
-    sans-serif;
-  letter-spacing: -1.5px;
-  color: #172e30;
+  padding: 3px 7px;
+  border: 2px solid currentColor;
+  transform: rotate(-2deg);
+  font: 700 27px/1 var(--f-stamp);
+  color: var(--bone);
 }
 h1,
 h2,
@@ -38,14 +36,14 @@ p {
   margin: 0 0 0.8rem;
 }
 h1 {
-  font:
-    600 clamp(36px, 5vw, 66px) / 1.08 Georgia,
-    serif;
-  letter-spacing: -0.04em;
+  font: 700 clamp(36px, 5vw, 58px) / 1.08 var(--f-stamp);
+  text-transform: uppercase;
 }
 h2 {
-  font-size: 21px;
-  line-height: 1.2;
+  font: 700 20px/1.2 var(--f-stamp);
+  text-transform: uppercase;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 6px;
 }
 h3 {
   font-size: 15px;
@@ -61,31 +59,34 @@ select {
 button,
 select,
 input[type='number'] {
-  border: 1px solid #98a5a0;
-  border-radius: 5px;
-  background: #fffef8;
-  color: #182e30;
+  border: 1px solid var(--ink-soft);
+  border-radius: var(--ui-r);
+  background: var(--paper) var(--noise);
+  color: var(--ink);
   padding: 0.58em 0.82em;
 }
 button {
   cursor: pointer;
+  font: 600 14px/1.3 var(--f-stamp);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  box-shadow: var(--control-edge);
 }
 button:disabled {
   opacity: 0.46;
   cursor: default;
 }
-button:hover:enabled,
-button:focus-visible {
-  border-color: #1b5856;
-  outline: 2px solid #1b585642;
+button:hover:enabled {
+  border-color: var(--stamp);
 }
 button[aria-pressed='true'],
 button.primary {
-  background: #213f40;
-  color: white;
-  border-color: #213f40;
+  background-color: var(--ink);
+  color: var(--bone);
+  border-color: var(--stamp);
 }
-.primary {
+button.primary {
+  background-color: var(--stamp);
   margin-top: 1.3rem;
   font-weight: 650;
 }
@@ -96,14 +97,17 @@ button.primary {
   gap: 22px;
 }
 .lobby p {
-  color: #4c605f;
+  color: var(--paper);
 }
 .setup,
 .panel,
 aside {
-  background: #fffef8;
-  border: 1px solid #c4cbc0;
-  border-radius: 9px;
+  color: var(--ink);
+  background: var(--sheet);
+  background-blend-mode: normal, multiply;
+  border: 1px solid var(--ink);
+  border-radius: var(--ui-r);
+  box-shadow: var(--control-edge), inset 0 0 16px #46342236;
   padding: clamp(16px, 2.2vw, 30px);
 }
 .formgrid,
@@ -130,7 +134,7 @@ label:has(> select) {
   gap: 7px;
 }
 .setup details {
-  border-top: 1px solid #c4cbc0;
+  border-top: 1px dashed var(--rule-line);
   margin-top: 18px;
   padding-top: 12px;
 }
@@ -141,12 +145,9 @@ summary {
 .check {
   font-size: 14px;
 }
-input {
-  accent-color: #234e4c;
-}
 output {
   display: block;
-  color: #973b24;
+  color: var(--stamp);
   margin-top: 0.5em;
 }
 .tablehead {
@@ -171,13 +172,13 @@ output {
   gap: 12px;
 }
 .felt {
-  background: #204747;
-  color: #fffef8;
-  border-radius: 12px;
+  background: #18382b var(--noise);
+  color: var(--bone);
+  border-radius: var(--ui-r);
   padding: 18px;
 }
 .felt.night {
-  background: #282c43;
+  background-color: #351a1d;
 }
 .rivals {
   display: flex;
@@ -188,7 +189,7 @@ output {
   flex: 1 1 140px;
   border: 1px solid #ffffff45;
   padding: 0.55em 0.8em;
-  border-radius: 5px;
+  border-radius: var(--ui-r);
   font-size: 13px;
 }
 .rivals article.active {
@@ -211,11 +212,11 @@ output {
   justify-content: space-between;
   align-items: flex-start;
   text-align: left;
-  color: #172f32;
-  background: #fffdf0;
-  border: 1px solid #acb1a4;
+  color: var(--ink);
+  background: var(--bone) var(--noise);
+  border: 1px solid var(--ink-soft);
   border-top: 6px solid var(--accent, #716340);
-  border-radius: 7px;
+  border-radius: 3px;
 }
 .pile {
   width: 108px;
@@ -223,13 +224,11 @@ output {
   padding: 12px;
 }
 .pile b {
-  font:
-    600 25px/1.1 Georgia,
-    serif;
+  font: 600 25px/1.1 var(--f-stamp);
   overflow-wrap: anywhere;
 }
 .deck {
-  background: #dbdbbc;
+  background-color: var(--paper-2);
 }
 .pile small,
 .card small {
@@ -271,12 +270,12 @@ output {
 }
 aside ol {
   padding-left: 1.5rem;
-  color: #435452;
+  color: var(--ink-soft);
   font-size: 14px;
 }
 aside li {
   padding: 0.45em 0;
-  border-bottom: 1px solid #dce1d7;
+  border-bottom: 1px dashed var(--rule-line);
 }
 table {
   border-collapse: collapse;
@@ -286,7 +285,7 @@ td,
 th {
   text-align: left;
   padding: 4px 8px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px dashed var(--rule-line);
   font-size: 14px;
 }
 [data-color='r'] {
