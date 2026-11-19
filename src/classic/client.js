@@ -1246,15 +1246,22 @@ const JUICE = (() => {
     const reels = [...el.querySelectorAll('.reels b')];
     const spinMs = full() ? [700, 950, 1200] : [150, 200, 250];
     const t0 = performance.now();
+    let nextTick = 0;
     clearTimeout(slotBusy);
     const tickR = () => {
       const now = performance.now() - t0; let spinning = false;
       reels.forEach((r, k) => {
         if (now < spinMs[k]) { spinning = true; r.textContent = GLYPH[keys[Math.floor(Math.random() * keys.length)]]; r.classList.add('spin'); }
-        else if (r.classList.contains('spin')) { r.classList.remove('spin'); r.textContent = GLYPH[ev] || '?'; r.classList.add('stop'); SFX.play('reel', k); }
+        else if (r.classList.contains('spin')) { r.classList.remove('spin'); r.textContent = GLYPH[ev] || '?'; r.classList.add('stop'); SFX.play('reel', k + 1); }
       });
-      if (spinning) { if (Math.random() < 0.5) SFX.play('tick'); requestAnimationFrame(tickR); }
-      else { el.classList.add('done'); SFX.play('chaos'); shake(3); burst(innerWidth / 2, innerHeight / 2, 40, null, 1); slotBusy = setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.classList.add('hidden'), 220); }, 1700); }
+      if (spinning) {
+        if (now >= nextTick) {
+          SFX.play('slotRatchet');
+          nextTick = now + 44 + 36 * now / spinMs[2];
+        }
+        requestAnimationFrame(tickR);
+      }
+      else { el.classList.add('done'); SFX.play('slotLatch'); shake(3); burst(innerWidth / 2, innerHeight / 2, 40, null, 1); slotBusy = setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.classList.add('hidden'), 220); }, 1700); }
     };
     requestAnimationFrame(tickR);
   }
@@ -1414,16 +1421,15 @@ const SFX = {
     if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
     try {
       const ctx = this.ctx = arguments[0] || new (window.AudioContext || window.webkitAudioContext)();
-      // master chain: gentle compressor + a short room so sounds sit together
+      // Keep tabletop transients close, with a short, damp room reflection.
       const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -18; comp.ratio.value = 3;
       const master = ctx.createGain(); master.gain.value = 0.9 * (S.vol ?? 0.8); this.master = master;
-      const dry = ctx.createGain(), wet = ctx.createGain(); wet.gain.value = 0.18;
-      // a concrete back room: a long, dark reverb tail
-      const ir = ctx.createBuffer(2, ctx.sampleRate * 2.2, ctx.sampleRate);
+      const dry = ctx.createGain(), wet = ctx.createGain(); wet.gain.value = 0.24;
+      const ir = ctx.createBuffer(2, ctx.sampleRate * 0.68, ctx.sampleRate);
       for (let ch = 0; ch < 2; ch++) { const d2 = ir.getChannelData(ch); for (let i = 0; i < d2.length; i++) d2[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d2.length, 3.2); }
       const dl = ctx.createConvolver(); dl.buffer = ir;
-      const damp = ctx.createBiquadFilter(); damp.type = 'lowpass'; damp.frequency.value = 2200;
-      dl.connect(damp); damp.connect(wet); wet.gain.value = 0.32;
+      const damp = ctx.createBiquadFilter(); damp.type = 'lowpass'; damp.frequency.value = 1650;
+      dl.connect(damp); damp.connect(wet);
       dry.connect(comp); wet.connect(comp); comp.connect(master); master.connect(ctx.destination);
       this.out = { dry, send: dl };
       const len = ctx.sampleRate; const buf = ctx.createBuffer(1, len, ctx.sampleRate); const d = buf.getChannelData(0);
@@ -1431,31 +1437,17 @@ const SFX = {
       this.noise = buf;
     } catch (e) { this.ctx = null; }
   },
-  route(node, wet = 0.3) { node.connect(this.out.dry); if (wet) { const g = this.ctx.createGain(); g.gain.value = wet; node.connect(g); g.connect(this.out.send); } },
-  // a burst of filtered noise: the body of every card sound
+  // Filtered noise supplies both surface texture and the damped body of an impact.
   rustle(t, dur, f1, f2, q, vol, type = 'bandpass') {
     const c = this.ctx, src = c.createBufferSource(); src.buffer = this.noise; src.playbackRate.value = 0.8 + Math.random() * 0.4;
     const flt = c.createBiquadFilter(); flt.type = type; flt.Q.value = q;
     flt.frequency.setValueAtTime(f1, t); flt.frequency.exponentialRampToValueAtTime(f2, t + dur);
-    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + Math.min(0.012, dur / 4)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    src.connect(flt); flt.connect(g); this.route(g, 0.15);
-    src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.05);
-  },
-  // a tuned strike: sine + a couple of partials with fast decay (marimba / chime feel)
-  strike(t, freq, dur, vol, partials = [1, 2.76, 5.4]) {
-    const c = this.ctx;
-    partials.forEach((p, k) => {
-      const o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.value = freq * p;
-      const v = vol / (1 + k * 2.2);
-      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur / (1 + k * 0.8));
-      o.connect(g); this.route(g, 0.35); o.start(t); o.stop(t + dur + 0.05);
-    });
-  },
-  thump(t, freq, dur, vol) {
-    const c = this.ctx, o = c.createOscillator(), g = c.createGain(); o.type = 'sine';
-    o.frequency.setValueAtTime(freq * 1.8, t); o.frequency.exponentialRampToValueAtTime(freq, t + dur * 0.5);
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g); this.route(g, 0); o.start(t); o.stop(t + dur + 0.05);
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + Math.min(0.01, dur / 7)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    const send = c.createGain(); send.gain.value = 0.15;
+    src.connect(flt); flt.connect(g); g.connect(this.out.dry);
+    g.connect(send); send.connect(this.out.send);
+    const availableOffset = this.noise.duration - dur * src.playbackRate.value;
+    src.start(t, Math.random() * Math.max(0, availableOffset)); src.stop(t + dur);
   },
   play(name, k = 1) {
     if (!S.sound || !this.ctx || (this.ctx.state !== 'running' && !this.offline)) return;
