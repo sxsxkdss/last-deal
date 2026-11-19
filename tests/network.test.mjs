@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -52,8 +52,10 @@ test('WebSocket room, hand order, idempotent draw, resume, and maintenance', asy
   const dbPath = join(dir, 'matches.sqlite');
   const stats = openStatistics(dbPath);
   const completed = [];
+  const release = 'a'.repeat(40);
   const app = createGameServer({
     drainFile,
+    release,
     onMatch: (match) => {
       completed.push(match);
       stats.record(match);
@@ -64,6 +66,7 @@ test('WebSocket room, hand order, idempotent draw, resume, and maintenance', asy
     app.http.listen(0, '127.0.0.1');
     await once(app.http, 'listening');
     const { port } = app.http.address();
+    const health = async () => (await fetch(`http://127.0.0.1:${port}/healthz`)).json();
     const a = await open(port, sockets),
       b = await open(port, sockets),
       list = await open(port, sockets);
@@ -95,13 +98,21 @@ test('WebSocket room, hand order, idempotent draw, resume, and maintenance', asy
 
     const turn = ordered.st.u;
     const actor = [a, b][turn];
+    await writeFile(drainFile, '');
+    assert.deepEqual(await health(), { ok: true, protocol: 1, release, draining: true, active: 1 });
+    const waiting = await open(port, sockets);
+    waiting.send({ t: 'create', name: 'C', mode: 'one' });
+    await waiting.next((m) => m.t === 'joined');
+    const bot = waiting.send({ t: 'addbot' });
+    assert.equal((await waiting.next((m) => m.t === 'ack' && m.n === bot)).ok, true);
+    const blocked = waiting.send({ t: 'start' });
+    assert.equal((await waiting.next((m) => m.t === 'ack' && m.n === blocked)).error, 'maintenance');
     const n = actor.send({ t: 'act', a: { k: 'draw' } }, initial[turn]);
     const ack = await actor.next((m) => m.t === 'ack' && m.n === n);
     assert.equal(ack.ok, true);
     actor.send({ t: 'act', a: { k: 'draw' } }, initial[turn], n);
     assert.deepEqual(await actor.next((m) => m.t === 'ack' && m.n === n), ack);
 
-    await writeFile(drainFile, '');
     b.ws.close();
     await a.next((m) => m.t === 'state' && m.st.aw[1] === 1);
     const resumed = await open(port, sockets);
@@ -118,6 +129,11 @@ test('WebSocket room, hand order, idempotent draw, resume, and maintenance', asy
     assert.equal((await a.next((m) => m.t === 'ack' && m.n === restart)).error, 'maintenance');
     assert.equal(completed.length, 1);
     assert.deepEqual(completed[0].withdrawn, [1]);
+    assert.deepEqual(await health(), { ok: true, protocol: 1, release, draining: true, active: 0 });
+    await unlink(drainFile);
+    waiting.send({ t: 'start' });
+    await waiting.next((m) => m.t === 'state' && m.phase === 'play');
+    assert.deepEqual(await health(), { ok: true, protocol: 1, release, draining: false, active: 1 });
     const db = new DatabaseSync(dbPath, { readOnly: true });
     try {
       const stored = JSON.parse(db.prepare('SELECT data FROM matches').get().data);

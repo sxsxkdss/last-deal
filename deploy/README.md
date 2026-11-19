@@ -70,6 +70,10 @@ The timer builds client and server first. With a ready release, new matches are 
 
 Таймер сначала собирает клиент и сервер. Готовая сборка ставит новые матчи на паузу, переподключение продолжает работать. При следующих запусках таймер проверяет, закончились ли активные матчи. Новая версия включается при нуле активных матчей. Если сервер не проходит проверку, скрипт возвращает старый сервер, прежняя статика остаётся доступной. Журнал: `journalctl -u last-deal-update.service -u last-deal-server.service`.
 
+The publisher checks that `/healthz` reports the same Git commit as the prepared release before switching the site. If the candidate fails, starts resume only after the restored server passes its health check. To enable this on an existing installation, reinstall `deploy/publish.sh` from the updated checkout using the `install` command above. Installing the script alone leaves the game process running.
+
+Перед переключением сайта скрипт сверяет коммит подготовленной сборки с полем `release` в `/healthz`. Если запуск новой версии не удался, новые матчи снова разрешаются после проверки восстановленного сервера. На действующем VPS установи свежий `deploy/publish.sh` из обновлённой копии репозитория командой `install` выше. Установка скрипта сама по себе не перезапускает игру.
+
 Use the local health endpoint for a quick check and open the site from two browsers to verify a real game. TCP 3000 stays local. / Проверь локальный health и сыграй из двух браузеров. Входящий TCP 3000 открывать не нужно.
 
 ```sh

@@ -27,7 +27,7 @@ Production limits include 32 KiB per inbound packet, 40 messages per second per 
 
 ## Operational checks
 
-- `GET /healthz` is a loopback check used by the publisher. It reports protocol version, maintenance state and active match count.
+- `GET /healthz` is a loopback check used by the publisher. It reports protocol version, maintenance state, active match count, and the Git commit (`release`) of a deployed runtime.
 - When the configured drain file exists, new starts are refused. Current commands, presence, and resume remain available until the last active match ends.
 - The running server keeps rooms in memory. Completed-match statistics are stored separately in SQLite. Restarting the process outside a drained release ends in-memory rooms.
 - Run `node tools/load-network.mjs 24 12 public 54` for a reproducible loopback benchmark with a catalog subscriber. See the [method and measurements](network-load.md).

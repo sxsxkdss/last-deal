@@ -1,10 +1,18 @@
+import { realpathSync } from 'node:fs';
+import { basename, dirname } from 'node:path';
 import { createGameServer } from './game-server.ts';
 import { openStatistics } from './statistics.ts';
 
 const port = Number(process.env.LAST_DEAL_PORT || 3000);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw Error('Invalid LAST_DEAL_PORT');
 const stats = openStatistics(process.env.LAST_DEAL_DB || 'last-deal.sqlite');
+const workingDirectory = realpathSync('.');
+const directoryName = basename(workingDirectory);
+const release = basename(dirname(workingDirectory)) === 'runtime' && /^[a-f0-9]{40}$/.test(directoryName)
+  ? directoryName
+  : undefined;
 const app = createGameServer({
+  release,
   drainFile: process.env.LAST_DEAL_DRAIN_FILE,
   grace: duration('LAST_DEAL_RECONNECT_MS', 60_000),
   awaySkip: duration('LAST_DEAL_AWAY_SKIP_MS', 15_000),
