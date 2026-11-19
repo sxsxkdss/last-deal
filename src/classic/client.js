@@ -102,7 +102,7 @@ const STR = {};
 STR.en = {
   // start screen and lobby
   lede: 'A card table in the basement of a casino. Days on the floor, nights in the back room. Rooms for friends, no sign-up.',
-  codePh: 'CODE', name: 'Name', createRoom: 'Open a room', haveCode: 'Got a code?', joinRoom: 'Join', howTo: 'How to play', language: 'Language',
+  codePh: 'CODE', name: 'Name', createRoom: 'Open table', haveCode: 'Got a code?', joinRoom: 'Join', howTo: 'How to play', language: 'Language',
   roomCode: 'Room code', copyLink: 'Copy link', copied: 'Copied', codeCopied: 'Code copied.', yourName: 'Your name', players: 'Players', rules: 'Rules',
   extraCards: 'House cards', startGame: 'Deal', tableRules: 'Table rules (the host decides)', leaveRoom: 'Leave the room', on: 'on', off: 'off',
   host: 'Host', player: 'Player', away: 'away', addBot: 'Add a bot', rmBot: 'Remove bot', botTag: 'Bot',
@@ -121,7 +121,7 @@ STR.en = {
   debtLimit: 'Debt limit',
 
   // connection
-  connecting: 'Connecting…', connServer: 'Connecting to the server…', enterCode: 'The room code is 4 characters.', enterName: 'Name first, then Join.',
+  connecting: 'Connecting…', connServer: 'Connecting to the server…', enterCode: 'Enter the six-character room code.', enterName: 'Name first, then Join.',
   rejoining: c => `Back to room ${c}…`, cantReach: "Can't reach the server.", reconnecting: 'Reconnecting…', connLost: 'Connection lost. Reconnecting…',
   otherTab: 'This room is open in another tab.', room: c => `Room ${c}`, hostLeft: 'The host left.', noRoom: 'No room with that code. It may have closed.',
   badReq: 'The server refused that.',
@@ -307,7 +307,7 @@ STR.en = {
 STR.ru = {
   // стартовый экран и лобби
   lede: 'Карточный стол в подвале казино. Днём играют в зале, ночью в подсобке. Комната для своих, без регистрации.',
-  codePh: 'КОД', name: 'Имя', createRoom: 'Открыть комнату', haveCode: 'Есть код?', joinRoom: 'Войти', howTo: 'Как играть', language: 'Язык',
+  codePh: 'КОД', name: 'Имя', createRoom: 'Открыть стол', haveCode: 'Есть код?', joinRoom: 'Войти', howTo: 'Как играть', language: 'Язык',
   roomCode: 'Код комнаты', copyLink: 'Скопировать ссылку', copied: 'Скопировано', codeCopied: 'Код скопирован.', yourName: 'Ваше имя', players: 'Игроки', rules: 'Правила',
   extraCards: 'Карты Дома', startGame: 'Сдать', tableRules: 'Правила стола (решает хозяин)', leaveRoom: 'Уйти из комнаты', on: 'вкл', off: 'выкл',
   host: 'Хозяин', player: 'Игрок', away: 'отошёл', addBot: 'Посадить бота', rmBot: 'Убрать бота', botTag: 'Бот',
@@ -326,7 +326,7 @@ STR.ru = {
   debtLimit: 'Лимит долга',
 
   // связь
-  connecting: 'Подключаемся…', connServer: 'Подключаемся к серверу…', enterCode: 'В коде комнаты 4 символа.', enterName: 'Сначала имя, потом «Войти».',
+  connecting: 'Подключаемся…', connServer: 'Подключаемся к серверу…', enterCode: 'Введите код комнаты из шести символов.', enterName: 'Сначала имя, потом «Войти».',
   rejoining: c => `Возвращаемся в комнату ${c}…`, cantReach: 'Сервер не отвечает.', reconnecting: 'Переподключаемся…', connLost: 'Связь пропала. Переподключаемся…',
   otherTab: 'Эта комната открыта в другой вкладке.', room: c => `Комната ${c}`, hostLeft: 'Хозяин ушёл.', noRoom: 'Комнаты с таким кодом нет. Возможно, её уже закрыли.',
   badReq: 'Сервер это не принял.',
@@ -1505,14 +1505,14 @@ function initials(name) {
 // ================= TABLE CONNECTION =================
 const local = localConnection(onServer);
 const online = webConnection(onServer);
-let conn = local, listedRooms = [], opponentSelection = new Map();
+let conn = local, listedRooms = null, directoryUnavailable = false, opponentSelection = new Map();
 let networkDeadline = null;
 const networkText = (ru, en) => LANG === 'ru' ? ru : en;
 function setNet(t) { $('netTag').textContent = t || (roomCode ? STR[LANG].room(roomCode) : ''); $('netBanner').textContent = t; $('netBanner').classList.toggle('hidden', !t); }
 function onServer(m) {
   switch (m.t) {
     case 'joined': roomCode = m.code; startMsg(''); setNet(''); break;
-    case 'directory': listedRooms = m.rooms; drawDirectory(); break;
+    case 'directory': listedRooms = m.rooms; directoryUnavailable = false; drawDirectory(); break;
     case 'disconnected': setNet(networkText('Восстанавливаем соединение…', 'Reconnecting…')); break;
     case 'error':
       { const txt = ({
@@ -1524,6 +1524,7 @@ function onServer(m) {
           forbidden: networkText('Действие недоступно.', 'This action is unavailable.'),
           'room-failed': networkText('Комната закрылась из-за ошибки.', 'The room closed after an error.'),
         })[m.code] || m.msg || t('badReq');
+        if (m.code === 'offline' && $('roomDirectory').open) { directoryUnavailable = true; drawDirectory(); }
         if (m.code === 'expired' || m.code === 'room-failed') { roomCode = ''; G = MATCH = null; closeModal(); show('start'); }
         if ($('start').classList.contains('hidden')) { $('lbWait').textContent = txt; toast(txt); } else startMsg(txt); }
       break;
@@ -1669,18 +1670,16 @@ function updateMusicControls() {
 }
 function applyStatic() {
   document.documentElement.lang = LANG;
-  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = el.id === 'btnCreate' ? (LANG === 'ru' ? 'Открыть стол' : 'Open table') : t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
   $('btnSound').textContent = S.sound ? t('soundOn') : t('soundOff');
   $('btnFx').innerHTML = UI_ICON.gear + ' ' + esc(t('settings'));
   seg($('segLang'), Object.keys(LANGS), 'lang', k => LANGS[k], () => setLang(S.lang));
   drawToggles();
   updateMusicControls();
-  $('onlineTitle').textContent = networkText('Играть по сети', 'Play online');
-  $('btnCreateOnline').textContent = networkText('Создать комнату', 'Create room');
-  $('btnListRooms').textContent = networkText('Открытые комнаты', 'Public rooms');
-  $('joinLabel').textContent = networkText('Код комнаты', 'Room code');
-  $('btnJoinOnline').textContent = networkText('Войти', 'Join');
+  $('roomDirectoryTitle').textContent = networkText('Открытые комнаты', 'Public rooms');
+  $('btnCreateLocal').textContent = networkText('Локальный стол', 'Local table');
+  $('shareLink').setAttribute('aria-label', networkText('Текст приглашения', 'Invitation text'));
   $('lbPublicLabel').textContent = networkText('Публичная комната', 'Public room');
   $('lbCapacityLabel').textContent = networkText('Мест за столом', 'Seats');
   $('lbBotProfileLabel').textContent = networkText('Стратегия нового бота', 'New bot strategy');
@@ -1706,33 +1705,98 @@ JUICE.startBg();
 function readName() { S.name = cleanName($('pname').value) || 'Player'; saveSettings(); $('lbName').value = S.name; return S.name; }
 function show(screen) { for (const id of ['start', 'lobby', 'game']) $(id).classList.toggle('hidden', id !== screen); if (screen !== 'game') document.body.classList.remove('dark'); }
 function startMsg(t) { $('startMsg').textContent = t; }
-function createRoom(transport) { readName(); startMsg(t('connServer')); roomCode = ''; if (conn !== transport) conn.close(); conn = transport; conn.open({ t: 'create', name: S.name, rules: S.rules, cards: S.cards, mode: S.mode, limit: S.limit }); }
+function createRoom(transport) {
+  readName();
+  startMsg(transport === online ? t('connServer') : '');
+  roomCode = '';
+  if (transport === local) online.close();
+  else if (conn === local) local.close();
+  conn = transport;
+  conn.open({ t: 'create', name: S.name, rules: S.rules, cards: S.cards, mode: S.mode, limit: S.limit });
+}
+const cleanRoomCode = (code) => code.toUpperCase().replace(/[^A-Z2-9]/g, '');
 function joinRoom(code) {
-  code = code.trim().toUpperCase();
-  if (!/^[A-Z2-9]{6}$/.test(code)) { startMsg(t('badReq')); return; }
+  code = cleanRoomCode(code);
+  if (code.length !== 6) { startMsg(t('enterCode')); return; }
   if (conn !== online) conn.close();
   conn = online;
+  startMsg(t('connecting'));
   conn.open({ t: 'join', name: readName(), code });
 }
 function drawDirectory() {
-  setHTML($('publicRooms'), listedRooms.map(r => `<div class="seatrow"><span>${esc(r.code)} · ${r.players}/${r.capacity} · ${t(r.mode === 'debt' ? 'modeDebt' : 'modeOne')}${r.live ? ' · ' + t('inProgress') : ''}</span><button class="btn quiet" type="button" data-room-code="${esc(r.code)}" ${!r.joinable ? 'disabled' : ''}>${networkText('Войти', 'Join')}</button></div>`).join(''));
+  if (directoryUnavailable || !listedRooms?.length) {
+    const label = directoryUnavailable ? t('cantReach') : listedRooms
+      ? networkText('Открытых комнат пока нет.', 'No public rooms yet.')
+      : t('connecting');
+    setHTML($('publicRooms'), `<p class="room-directory-empty">${esc(label)}</p>`);
+    return;
+  }
+  setHTML($('publicRooms'), listedRooms.map(r => `<div class="seatrow room-directory-row">
+    <span class="room-directory-meta">
+      <strong class="room-directory-code">${esc(r.code)}</strong>
+      <span class="label">${r.players}/${r.capacity} · ${t(r.mode === 'debt' ? 'modeDebt' : 'modeOne')}${r.live ? ' · ' + networkText('Идёт матч', 'In progress') : ''}</span>
+    </span>
+    <button class="btn" type="button" data-room-code="${esc(r.code)}" ${!r.joinable ? 'disabled' : ''}>${t('joinRoom')}</button>
+  </div>`).join(''));
 }
-$('btnCreate').onclick = () => createRoom(local);
-$('btnCreateOnline').onclick = () => createRoom(online);
-$('btnListRooms').onclick = () => online.open({ t: 'list' });
+$('btnCreate').onclick = () => createRoom(online);
+$('btnCreateLocal').onclick = () => createRoom(local);
+$('joinCode').oninput = (event) => { event.target.value = cleanRoomCode(event.target.value); };
+$('roomDirectory').ontoggle = () => {
+  if (!$('roomDirectory').open) return;
+  listedRooms = null;
+  directoryUnavailable = false;
+  drawDirectory();
+  online.open({ t: 'list' });
+};
 $('joinOnline').onsubmit = (event) => { event.preventDefault(); joinRoom($('joinCode').value); };
 $('publicRooms').onclick = (event) => { const button = event.target.closest('[data-room-code]'); if (button) joinRoom(button.dataset.roomCode); };
 $('lbPublic').onchange = (event) => conn.send({ t: 'settings', public: event.target.checked });
 $('lbCapacity').onchange = (event) => conn.send({ t: 'settings', capacity: +event.target.value });
 if (location.protocol === 'https:' || location.protocol === 'http:') {
   $('onlineRooms').classList.remove('hidden');
+  const fillInvitation = () => {
+    const invitation = /^#join-([a-z2-9]{6})$/i.exec(location.hash);
+    if (invitation) $('joinCode').value = cleanRoomCode(invitation[1]);
+  };
+  fillInvitation();
+  window.addEventListener('hashchange', fillInvitation);
   queueMicrotask(() => { if (online.resume()) conn = online; });
+} else {
+  $('startLinks').classList.add('offline');
+  $('btnCreateLocal').classList.remove('textlink');
+  $('btnCreateLocal').classList.add('btn', 'primary', 'wide');
 }
 function leaveRoom() {
   conn.close();
+  $('roomDirectory').open = false;
   roomCode = ''; G = null; busy = false; lastGid = null; closeModal(); show('start'); setNet('');
 }
 $('btnLeave').onclick = leaveRoom;
+function invitationLink(code) {
+  const url = new URL(location.href);
+  url.search = '';
+  url.hash = 'join-' + code;
+  return url.href;
+}
+async function copyInvitation(value, feedback) {
+  if (!roomCode) return;
+  const code = roomCode;
+  try {
+    await navigator.clipboard.writeText(value);
+    if (roomCode === code) $('lbHint').textContent = t(feedback);
+  } catch {
+    if (roomCode !== code) return;
+    const field = $('shareLink');
+    field.value = value;
+    field.classList.remove('hidden');
+    field.focus();
+    field.select();
+    $('lbHint').textContent = networkText('Скопируйте выделенный текст.', 'Copy the selected text.');
+  }
+}
+$('lbCode').onclick = () => copyInvitation(roomCode, 'codeCopied');
+$('btnCopyLink').onclick = () => copyInvitation(invitationLink(roomCode), 'copied');
 let renameTimer;
 $('lbName').addEventListener('input', () => {
   clearTimeout(renameTimer);
@@ -1746,7 +1810,11 @@ $('btnRoomStart').onclick = () => conn.send({ t: 'start' });
 $('btnAddBot').onclick = () => conn.send({ t: 'addbot', profile: $('lbBotProfile').value });
 $('btnRmBot').onclick = () => conn.send({ t: 'rmbot' });
 function renderLobby(l) {
-  $('lbHint').textContent = l.code ? networkText('Код комнаты: ', 'Room code: ') + l.code : networkText('Добавьте ботов и начните игру.', 'Add bots to start playing.');
+  $('roomInvite').classList.toggle('hidden', !l.code);
+  if ($('lbCode').textContent !== l.code) $('shareLink').classList.add('hidden');
+  $('lbCode').textContent = l.code;
+  $('lbCode').setAttribute('aria-label', networkText('Скопировать код ', 'Copy room code ') + l.code);
+  $('lbHint').textContent = l.code ? t(l.host ? 'hintHost' : 'hintGuest') : networkText('Добавьте ботов и начните игру.', 'Add bots to start playing.');
   $('lbOnlineConfig').classList.toggle('hidden', !l.code);
   $('lbPublic').checked = !!l.public;
   $('lbCapacity').value = l.capacity || 6;
@@ -1765,7 +1833,9 @@ function renderLobby(l) {
     if (changed) { drawToggles(); saveSettings(); }
     const online = l.players.filter(p => p[1]).length;
     $('btnRoomStart').disabled = online < 2;
-    $('lbWait').textContent = online < 2 ? t('needMore') : t('ready', Math.min(online, 6));
+    const capacity = l.capacity || 6;
+    $('lbWait').textContent = online < 2 ? t('needMore')
+      : networkText(`За столом: ${online}/${capacity}.`, `At the table: ${online}/${capacity}.`);
   } else {
     const row = (name, on) => `<div class="rv ${on ? '' : 'off'}"><span>${esc(name)}</span><span class="mono">${on ? t('on') : t('off')}</span></div>`;
     const pk = presetOf(l.rules, l.cards);

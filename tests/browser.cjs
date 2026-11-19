@@ -64,7 +64,7 @@ async function classicTable(browser, mode) {
   await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
   await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'));
   await page.goto('http://127.0.0.1:' + server.address().port);
-  await page.locator('#btnCreate').click();
+  await page.locator('#btnCreateLocal').click();
   const add = page.locator('#btnAddBot'),
     remove = page.locator('#btnRmBot');
   await add.click();

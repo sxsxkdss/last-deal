@@ -21,22 +21,36 @@ try {
   const url = `http://127.0.0.1:${vite.httpServer.address().port}/`;
   browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH });
   const errors = [];
-  const create = async (name) => {
-    const context = await browser.newContext({ locale: 'ru-RU', reducedMotion: 'reduce' });
+  const create = async (name, viewport) => {
+    const context = await browser.newContext({
+      locale: 'ru-RU',
+      reducedMotion: 'reduce',
+      viewport,
+      permissions: ['clipboard-read', 'clipboard-write'],
+    });
     await context.route('https://**/*', (route) => route.abort());
     const page = await context.newPage();
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto(url);
     await page.locator('#pname').fill(name);
-    await page.locator('#onlineTitle').click();
     return page;
   };
   const a = await create('Audit A'),
-    b = await create('Audit B');
-  await a.locator('#btnCreateOnline').click();
+    b = await create('Audit B', { width: 360, height: 760 });
+  await a.locator('#btnCreate').click();
   await a.locator('#lobby').waitFor({ state: 'visible' });
-  const code = (await a.locator('#lbHint').textContent()).match(/[A-Z2-9]{6}$/)[0];
-  await b.locator('#joinCode').fill(code);
+  const code = await a.locator('#lbCode').textContent();
+  assert.match(code, /^[A-Z2-9]{6}$/);
+  await a.locator('#lbCode').click();
+  assert.equal(await a.evaluate(() => navigator.clipboard.readText()), code);
+  await a.locator('#btnCopyLink').click();
+  const invitation = await a.evaluate(() => navigator.clipboard.readText());
+  assert.equal(invitation, url + '#join-' + code);
+  await a.locator('#lbPublic').check();
+  await b.locator('#roomDirectoryTitle').click();
+  await b.locator('.room-directory-code').getByText(code, { exact: true }).waitFor();
+  await b.goto(invitation);
+  assert.equal(await b.locator('#joinCode').inputValue(), code);
   await b.locator('#btnJoinOnline').click();
   await b.locator('#lobby').waitFor({ state: 'visible' });
   await a.locator('[data-mode="one"]').click();
@@ -59,7 +73,7 @@ try {
     .click({ position: { x: 8, y: 18 } });
   await received;
   assert.deepEqual(errors, []);
-  console.log('Online browser: create, join by code, start, draw, play and resume after reload.');
+  console.log('Online browser: main button, room code, public list, invitation, play and resume.');
 } finally {
   await browser?.close();
   if (vite) await new Promise((resolve) => vite.httpServer.close(resolve));

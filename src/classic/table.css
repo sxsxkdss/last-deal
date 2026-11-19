@@ -77,9 +77,49 @@ body.lite #grain { display: none; }
 .section { margin-top: 28px; }
 .section > .label { display: block; margin-bottom: 8px; }
 .actions-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.code-in { width: 96px; text-align: center; letter-spacing: .2em; text-transform: uppercase; }
 .msg { min-height: 20px; margin-top: 8px; font: 400 13px var(--f-type); color: var(--ink-soft); }
-.code { font: 700 52px/56px var(--f-stamp); letter-spacing: .2em; color: var(--stamp); cursor: pointer; }
+.room-join { margin-top: 24px; }
+.room-join .label { display: block; margin-bottom: 6px; }
+.room-join-row, .room-invite-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.page input.code-in {
+  width: 148px; padding: 0 8px; text-align: center; font: 700 21px var(--f-type);
+  letter-spacing: .13em; color: var(--stamp); text-transform: uppercase;
+  background: rgba(48, 33, 19, .07); border-color: var(--stamp);
+}
+.code-in::placeholder { color: var(--ink-soft); opacity: .68; }
+.start-links { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 16px; }
+.start-links .textlink { margin: 0; }
+.start-links.offline { margin-top: 24px; }
+.start-links.offline .local-entry { margin-bottom: 6px; }
+.room-directory-row { gap: 10px; }
+.room-directory-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 10px; min-width: 0; }
+.room-directory-meta .label { letter-spacing: .04em; }
+.room-directory-code { font: 700 20px/1.2 var(--f-stamp); letter-spacing: .14em; color: var(--stamp); }
+.room-directory-empty { padding: 4px 0 8px; }
+.room-invite .label { display: block; }
+.room-invite-actions { margin: 8px 0 0; }
+.room-invite .code {
+  padding: 1px 7px 3px 10px; border: 3px solid currentColor; border-radius: var(--ui-r);
+  font: 700 clamp(32px, 9vw, 45px)/1.15 var(--f-stamp); letter-spacing: .12em;
+  color: var(--stamp); transform: rotate(-2deg);
+}
+.room-invite .code:hover { color: var(--stamp-hi); }
+.room-invite .code:focus-visible, .page input.code-in:focus-visible, .room-option select:focus-visible {
+  outline: 2px solid var(--stamp); outline-offset: 3px;
+}
+#shareLink { width: 100%; margin-top: 6px; user-select: text; }
+.page .room-hint { margin: 10px 0 20px; }
+.room-config { padding: 10px 0 12px; border-block: 1px dashed rgba(29, 23, 18, .3); }
+.room-visibility { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 10px; cursor: pointer; }
+.room-visibility input { width: 16px; height: 16px; accent-color: var(--stamp); }
+.room-options { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 10px; }
+.room-option { display: grid; gap: 4px; min-width: 0; }
+.room-option select {
+  width: 100%; min-height: 36px; padding: 4px 23px 4px 6px; appearance: none;
+  font: 500 13px var(--f-type); color: var(--ink); border: 1px solid var(--ink); border-radius: var(--ui-r);
+  background: linear-gradient(45deg, transparent 50%, var(--ink) 50%) right 12px center/5px 5px no-repeat,
+    linear-gradient(135deg, var(--ink) 50%, transparent 50%) right 7px center/5px 5px no-repeat, var(--paper-2);
+}
 .seatrow { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-top: 1px dashed rgba(29, 23, 18, .3); }
 .seatrow:last-child { border-bottom: 1px dashed rgba(29, 23, 18, .3); }
 .seatrow .who { display: flex; gap: 8px; align-items: center; font: 600 14px var(--f-type); }

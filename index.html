@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LAST DEAL</title>
-<meta name="description" content="LAST DEAL: a two-sided card game played in a back room under a casino. Day on the floor, night in the back room. Play a local table against bots.">
+<meta name="description" content="LAST DEAL: a two-sided card game played in a back room under a casino. Open a table online and invite your friends.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400..700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -23,38 +23,57 @@
     <p class="lede" data-i18n="lede"></p>
     <div class="field"><span class="label" data-i18n="language"></span><div class="seg" id="segLang"></div></div>
     <div class="field"><span class="label" data-i18n="name"></span><input id="pname" type="text" maxlength="14" value="Player"></div>
-    <div class="section"><button class="btn primary wide" id="btnCreate" data-i18n="createRoom"></button></div>
-    <details class="fine hidden" id="onlineRooms">
-      <summary id="onlineTitle"></summary>
-      <div class="section actions-row">
-        <button type="button" class="btn" id="btnCreateOnline"></button>
-        <button type="button" class="btn" id="btnListRooms"></button>
-      </div>
-      <form class="field" id="joinOnline">
-        <label class="label" for="joinCode" id="joinLabel"></label>
-        <input id="joinCode" maxlength="6" required autocomplete="off">
-        <button class="btn" id="btnJoinOnline"></button>
+    <div class="section hidden" id="onlineRooms">
+      <button type="button" class="btn primary wide" id="btnCreate" data-i18n="createRoom"></button>
+      <form class="room-join" id="joinOnline">
+        <label class="label" for="joinCode" data-i18n="roomCode"></label>
+        <div class="room-join-row">
+          <input id="joinCode" class="code-in" type="text" maxlength="6" required
+            autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC234">
+          <button type="submit" class="btn" id="btnJoinOnline" data-i18n="joinRoom"></button>
+        </div>
       </form>
-      <div id="publicRooms"></div>
-    </details>
-    <div class="msg" id="startMsg"></div>
-    <button class="textlink" data-rules data-i18n="howTo"></button> <button class="textlink" data-settings data-i18n="settings"></button>
+      <details class="fine" id="roomDirectory">
+        <summary id="roomDirectoryTitle"></summary>
+        <div id="publicRooms"></div>
+      </details>
+    </div>
+    <div class="msg" id="startMsg" role="status"></div>
+    <div class="start-links" id="startLinks">
+      <button type="button" class="textlink local-entry" id="btnCreateLocal"></button>
+      <button type="button" class="textlink" data-rules data-i18n="howTo"></button>
+      <button type="button" class="textlink" data-settings data-i18n="settings"></button>
+    </div>
   </div>
 </div>
 
 <div id="lobby" class="screen hidden">
   <div class="page">
 
-    <p class="lede" id="lbHint" style="margin:8px 0 24px"></p>
+    <div class="room-invite hidden" id="roomInvite">
+      <span class="label" data-i18n="roomCode"></span>
+      <div class="room-invite-actions">
+        <button type="button" class="code" id="lbCode"></button>
+        <button type="button" class="btn" id="btnCopyLink" data-i18n="copyLink"></button>
+      </div>
+      <input type="text" class="hidden" id="shareLink" readonly>
+    </div>
+    <p class="lede room-hint" id="lbHint" role="status"></p>
     <div class="field"><span class="label" data-i18n="yourName"></span><input id="lbName" type="text" maxlength="14"></div>
     <div class="section"><span class="label" data-i18n="players"></span><div id="lbSeats" style="margin-top:8px"></div></div>
     <div id="lbHost">
-      <div class="section hidden" id="lbOnlineConfig">
-        <label><input type="checkbox" id="lbPublic"> <span id="lbPublicLabel"></span></label>
-        <label for="lbCapacity" id="lbCapacityLabel"></label>
-        <select id="lbCapacity"><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select>
-        <label for="lbBotProfile" id="lbBotProfileLabel"></label>
-        <select id="lbBotProfile"><option value="standard"></option><option value="cautious"></option><option value="aggressive"></option><option value="combos"></option><option value="debt"></option></select>
+      <div class="section room-config hidden" id="lbOnlineConfig">
+        <label class="room-visibility"><input type="checkbox" id="lbPublic"> <span id="lbPublicLabel"></span></label>
+        <div class="room-options">
+          <label class="room-option">
+            <span class="label" id="lbCapacityLabel"></span>
+            <select id="lbCapacity"><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select>
+          </label>
+          <label class="room-option">
+            <span class="label" id="lbBotProfileLabel"></span>
+            <select id="lbBotProfile"><option value="standard"></option><option value="cautious"></option><option value="aggressive"></option><option value="combos"></option><option value="debt"></option></select>
+          </label>
+        </div>
       </div>
       <div class="section actions-row"><button class="btn" id="btnAddBot" data-i18n="addBot"></button><button class="btn" id="btnRmBot" data-i18n="rmBot"></button></div>
       <div class="section"><button class="btn primary wide" id="btnRoomStart" data-i18n="startGame"></button></div>

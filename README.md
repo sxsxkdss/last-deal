@@ -8,7 +8,7 @@ Last Deal is a browser card game for 2–6 seats. Open a local table against bot
 
 ### How to play
 
-1. Select **Open table**, add at least one bot, choose a mode and a rules preset, then select **Deal**.
+1. Select **Open table** to create an online room. Send your friends the room code or copy the invitation link. Use **Local table** to play offline. Choose a mode and rules preset, add bots if needed, then select **Deal**.
 2. Everyone starts with seven cards. On your turn, match the top discard by colour or symbol, or play a legal wild card. Click a card or drag it onto the discard pile.
 3. If you cannot play, click the deck to draw. Play an eligible card or pass when the table allows it. With **Draw till colour**, keep drawing until you find the required colour or a wild.
 4. **Shift** flips the cards between day and night. **Eclipse** switches the phase for one turn. With stacking enabled, answer a draw attack with an equal or stronger draw card. When group plays are enabled, right-click or Shift-click to select cards for a multi-discard or poker combination.
@@ -27,7 +27,7 @@ npm run dev
 
 Open the URL printed by Vite. Use `npm run build` for a production build in `dist/` or `npm test` to run the rule tests.
 
-For online play, run `npm start` in a second terminal. Vite proxies `/ws` to the Node server on local port 3000. Use **Play online** in two separate browser profiles and join the room by code. See the [network protocol](docs/network-protocol.md) and [server deployment steps](deploy/README.md#websocket-server--сетевой-сервер).
+For online play, run `npm start` in a second terminal. Vite proxies `/ws` to the Node server on local port 3000. Open a table in one browser profile and join by code in the other. See the [network protocol](docs/network-protocol.md) and [server deployment steps](deploy/README.md#websocket-server--сетевой-сервер).
 
 ### Deploy to your VPS
 
@@ -92,7 +92,7 @@ Last Deal — браузерная карточная игра на 2–6 мес
 
 ### Как играть
 
-1. Нажми **Открыть стол**, добавь хотя бы одного бота, выбери режим и пресет правил, затем нажми **Сдать**.
+1. Нажми **Открыть стол**, чтобы создать сетевую комнату. Отправь друзьям код или скопируй ссылку-приглашение. Для игры без сервера выбери **Локальный стол**. Выбери режим и пресет правил, при необходимости добавь ботов и нажми **Сдать**.
 2. Все начинают с семью картами. В свой ход положи карту того же цвета или символа, что и верхняя карта сброса, либо допустимого джокера. Карту можно сыграть кликом или перетащить в сброс.
 3. Если ходить нечем, нажми на колоду. Сыграй подходящую карту или передай ход, когда стол это разрешит. При правиле **Тянуть до цвета** добирай, пока не найдёшь нужный цвет или джокера.
 4. **Смена** переворачивает карты и переключает день и ночь. **Затмение** меняет фазу на один ход. При включённых стопках на атаку добором можно ответить равной или более сильной картой добора. Если разрешён групповой розыгрыш, отмечай карты правым кликом или кликом с Shift для мультисброса или покерной комбинации.
@@ -111,7 +111,7 @@ npm run dev
 
 Открой адрес, который покажет Vite. Команда `npm run build` собирает сайт в `dist/`, а `npm test` запускает тесты правил.
 
-Для сетевой игры запусти `npm start` во втором терминале. Vite направляет `/ws` на локальный порт 3000. В двух профилях браузера открой **Играть по сети** и войди в комнату по коду. См. [сетевой протокол](docs/network-protocol.md) и [установку серверной службы](deploy/README.md#websocket-server--сетевой-сервер).
+Для сетевой игры запусти `npm start` во втором терминале. Vite направляет `/ws` на локальный порт 3000. В одном профиле браузера открой стол, в другом войди по коду. См. [сетевой протокол](docs/network-protocol.md) и [установку серверной службы](deploy/README.md#websocket-server--сетевой-сервер).
 
 ### Установка на свой VPS
 
