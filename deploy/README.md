@@ -46,3 +46,35 @@ Run this only if Nginx is not installed. The temporary mask prevents the package
 ```
 
 Continue with step 4 in the main tutorial. / Продолжи с шага 4 основной инструкции.
+
+## WebSocket server / Сетевой сервер
+
+Complete steps 1–4 in the main tutorial first. From a checkout containing the server, install the new service and release helper as root. Replace the existing Nginx block with the updated template. It proxies only `/ws` to `127.0.0.1:3000`. If you use a nonstandard Node.js location, configure the same `PATH` for both systemd services.
+
+Сначала выполни шаги 1–4 основной инструкции. Из копии репозитория с сервером установи новую службу и скрипт публикации от root. Обнови блок Nginx по шаблону, он проксирует только `/ws` на `127.0.0.1:3000`. При нестандартной установке Node.js задай одинаковый `PATH` для обеих служб systemd.
+
+```sh
+install -D -m 0755 deploy/update.sh /usr/local/libexec/last-deal-update
+install -D -m 0755 deploy/publish.sh /usr/local/libexec/last-deal-publish
+install -m 0644 deploy/last-deal-server.service /etc/systemd/system/
+install -D -m 0644 deploy/server-update.conf /etc/systemd/system/last-deal-update.service.d/server.conf
+systemctl daemon-reload
+systemctl start last-deal-update.service
+systemctl enable last-deal-server.service
+curl -fsS http://127.0.0.1:3000/healthz
+nginx -t && systemctl reload nginx
+systemctl enable --now last-deal-update.timer
+```
+
+The timer builds client and server first. With a ready release, new matches are paused, reconnects still work, and the next timer runs check whether active matches have finished. The new services switch only at zero active matches. If the new runtime fails its health check, the publisher restores the old runtime and the old site remains current. The tracker is `journalctl -u last-deal-update.service -u last-deal-server.service`.
+
+Таймер сначала собирает клиент и сервер. Готовая сборка ставит новые матчи на паузу, переподключение продолжает работать. При следующих запусках таймер проверяет, закончились ли активные матчи. Новая версия включается при нуле активных матчей. Если сервер не проходит проверку, скрипт возвращает старый сервер, прежняя статика остаётся доступной. Журнал: `journalctl -u last-deal-update.service -u last-deal-server.service`.
+
+Use the local health endpoint for a quick check and open the site from two browsers to verify a real game. TCP 3000 stays local. / Проверь локальный health и сыграй из двух браузеров. Входящий TCP 3000 открывать не нужно.
+
+```sh
+curl -fsS http://127.0.0.1:3000/healthz
+readlink /var/lib/last-deal/runtime-current
+cd /var/lib/last-deal/runtime-current
+npm run stats:export -- /var/lib/last-deal/matches.sqlite
+```

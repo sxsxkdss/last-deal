@@ -8,6 +8,24 @@ server {
     root /var/lib/last-deal/current;
     index index.html;
 
+    location = /ws {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 75s;
+    }
+
+    location /assets/ {
+        try_files $uri @previous_assets;
+    }
+
+    location @previous_assets {
+        root /var/lib/last-deal/previous;
+        try_files $uri =404;
+    }
+
     location / {
         add_header Cache-Control "no-cache";
         try_files $uri $uri/ =404;

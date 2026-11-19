@@ -4,12 +4,15 @@ import { Game } from '../rules/game.ts';
 import { selection } from '../rules/selection.ts';
 import { nextBotJob } from './bots.ts';
 import { Clock } from './clock.ts';
-import { buy, collector, matchFor, maybeEndDraft, maybeEndShop, settle, startGame } from './match.ts';
+import { afterChange, buy, collector, matchFor, maybeEndDraft, maybeEndShop, settle, startGame } from './match.ts';
 import type { MatchState } from './state.ts';
+import { visibleEvents } from './visibility.ts';
+import type { BotProfile } from '../rules/bot.ts';
 
 export interface Seat {
   name: string;
   bot: boolean;
+  profile?: BotProfile;
 }
 export interface Settings {
   members: Seat[];
@@ -46,9 +49,17 @@ export class Table {
   warPi = -1;
   private warKey = '';
   private timer = 0;
+  private idleKey = '';
+  decisionAt = 0;
   private botTimer = 0;
   private away = new Map<number, number>();
-  constructor(settings: Settings, random: () => number) {
+  readonly network?: {
+    gameId: () => string;
+    grace: number;
+    awaySkip: number;
+  };
+  constructor(settings: Settings, random: () => number, network?: Table['network']) {
+    this.network = network;
     const { members, mode, limit, rules, cards } = structuredClone(settings);
     if (
       members.length < 2 ||
@@ -68,19 +79,47 @@ export class Table {
   }
   setAway(seat: number, away: boolean) {
     if (!this.members[seat] || this.members[seat].bot) return;
+    if (this.network && away === this.away.has(seat)) return;
     this.clock.cancel(this.away.get(seat));
     this.away.delete(seat);
     if (away)
       this.away.set(
         seat,
         this.clock.after(() => {
-          if (this.phase === 'play') {
+          if (this.network) {
+            this.forfeit(seat, 'away');
+          } else if (this.phase === 'play') {
             this.G.removePlayer(seat, 'away');
             this.sync();
           }
-        }, 60000),
+        }, this.network?.grace ?? 60000),
       );
     this.sync();
+  }
+  forfeit(seat: number, reason: 'away' | 'left') {
+    if (this.phase === 'over' || !this.G.players[seat] || this.M?.withdrawn[seat]) return;
+    this.clock.cancel(this.away.get(seat));
+    this.away.delete(seat);
+    if (this.M) this.M.withdrawn[seat] = true;
+    if (this.phase === 'play') {
+      this.G.removePlayer(seat, reason);
+      if (this.M && this.G.winner === null && this.G.active().length === 0)
+        afterChange(this, () => {});
+      this.sync();
+    } else if (this.M) {
+      const phase = this.phase;
+      const p = this.G.players[seat];
+      p.out = true;
+      p.left = true;
+      p.hand = [];
+      this.M.done[seat] = true;
+      if (this.G.turn === seat) this.G.turn = this.G.nextIdx(seat, 1);
+      const ended = afterChange(this, () => {
+        if (phase === 'draft') maybeEndDraft(this);
+        if (phase === 'shop') maybeEndShop(this);
+      });
+      if (ended) this.sync();
+    }
   }
   get phase(): 'play' | 'over' | 'draft' | 'shop' {
     return this.M?.phase ?? (this.G.winner === null ? 'play' : 'over');
@@ -95,9 +134,15 @@ export class Table {
     const g = this.G;
     this.clock.cancel(this.timer);
     this.clock.cancel(this.botTimer);
-    if (this.phase !== 'play') return;
+    if (this.phase !== 'play') {
+      this.idleKey = '';
+      this.decisionAt = 0;
+      return;
+    }
     for (let n = 0; n < 8 && g.beginTurn(); n++) {}
     if (g.winner !== null) {
+      this.idleKey = '';
+      this.decisionAt = 0;
       if (this.M) settle(this);
       return;
     }
@@ -109,6 +154,7 @@ export class Table {
         this.sync();
       }, delay);
     if (!bot && g.horseOn('war', 'timer') && !g.offer && g.roulette === null) {
+      this.idleKey = '';
       const key = [g.gid, g.turnKey, g.turn, g.againN || 0].join('/');
       if (key !== this.warKey || g.owes(actor) || !this.warAt) {
         this.warAt = this.clock.now + 5000;
@@ -119,14 +165,26 @@ export class Table {
         this.warAt = 0;
         g.warTimeout(actor);
       });
+      this.decisionAt = this.warAt;
     } else {
       this.warAt = 0;
-      if (!bot)
-        this.timer = g.offer
-          ? after(45000, () =>
-              g.resolveDeal(actor, g.offer.kind === 'dark' ? null : g.offer.opts[0], null),
-            )
-          : after(this.away.has(actor) ? 15000 : 60000, () => g.skipTurn(actor));
+      if (!bot) {
+        const kind = g.offer ? 'offer' : g.roulette !== null ? 'roulette' : 'turn';
+        const away = this.away.has(actor);
+        const key = [g.gid, g.turnNo, actor, kind, kind === 'offer' ? g.offer.kind : away].join('/');
+        if (!this.network || this.idleKey !== key) {
+          this.idleKey = key;
+          this.decisionAt = this.clock.now + (g.offer ? 45000 : away ? this.network?.awaySkip ?? 15000 : 60000);
+        }
+        this.timer = after(Math.max(1, this.decisionAt - this.clock.now), () => {
+          this.idleKey = '';
+          if (g.offer) g.resolveDeal(actor, g.offer.kind === 'dark' ? null : g.offer.opts[0], null);
+          else g.skipTurn(actor);
+        });
+      } else {
+        this.idleKey = '';
+        this.decisionAt = 0;
+      }
     }
     const job = nextBotJob(this);
     if (job) this.botTimer = after(job.wait, () => nextBotJob(this)?.run());
@@ -134,7 +192,7 @@ export class Table {
   dispatch(seat: number, a: Action): boolean {
     if (
       !Number.isInteger(seat) ||
-      !this.members[seat] ||
+      !this.members[seat] || this.M?.withdrawn[seat] ||
       !a ||
       ('cards' in a && !Array.isArray(a.cards))
     )
@@ -322,9 +380,7 @@ export class Table {
       },
       items: (p.inv || []).map((id) => ({ id, enabled: g.canUseItem(seat, id) })),
       match: matchFor(this, seat),
-      events: g.events.filter(
-        (e) => !['demonMiss', 'demonCharge', 'eclipseMiss'].includes(e.type) || e.pi === seat,
-      ),
+      events: visibleEvents(g.events, seat),
       log: g.log.slice(-25),
       gameId: g.gid,
     });

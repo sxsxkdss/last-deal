@@ -1,0 +1,23 @@
+[Unit]
+Description=Last Deal WebSocket game server
+After=network.target
+
+[Service]
+User=last-deal
+Group=last-deal
+WorkingDirectory=/var/lib/last-deal/runtime-current
+StateDirectory=last-deal
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=LAST_DEAL_PORT=3000
+Environment=LAST_DEAL_DB=/var/lib/last-deal/matches.sqlite
+Environment=LAST_DEAL_DRAIN_FILE=/var/lib/last-deal/drain
+EnvironmentFile=-/etc/default/last-deal
+ExecStart=/usr/bin/env node --disable-warning=ExperimentalWarning server/main.ts
+Restart=on-failure
+ProtectSystem=strict
+ProtectHome=yes
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

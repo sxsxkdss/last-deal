@@ -24,6 +24,19 @@
     <div class="field"><span class="label" data-i18n="language"></span><div class="seg" id="segLang"></div></div>
     <div class="field"><span class="label" data-i18n="name"></span><input id="pname" type="text" maxlength="14" value="Player"></div>
     <div class="section"><button class="btn primary wide" id="btnCreate" data-i18n="createRoom"></button></div>
+    <details class="fine hidden" id="onlineRooms">
+      <summary id="onlineTitle"></summary>
+      <div class="section actions-row">
+        <button type="button" class="btn" id="btnCreateOnline"></button>
+        <button type="button" class="btn" id="btnListRooms"></button>
+      </div>
+      <form class="field" id="joinOnline">
+        <label class="label" for="joinCode" id="joinLabel"></label>
+        <input id="joinCode" maxlength="6" required autocomplete="off">
+        <button class="btn" id="btnJoinOnline"></button>
+      </form>
+      <div id="publicRooms"></div>
+    </details>
     <div class="msg" id="startMsg"></div>
     <button class="textlink" data-rules data-i18n="howTo"></button> <button class="textlink" data-settings data-i18n="settings"></button>
   </div>
@@ -36,6 +49,13 @@
     <div class="field"><span class="label" data-i18n="yourName"></span><input id="lbName" type="text" maxlength="14"></div>
     <div class="section"><span class="label" data-i18n="players"></span><div id="lbSeats" style="margin-top:8px"></div></div>
     <div id="lbHost">
+      <div class="section hidden" id="lbOnlineConfig">
+        <label><input type="checkbox" id="lbPublic"> <span id="lbPublicLabel"></span></label>
+        <label for="lbCapacity" id="lbCapacityLabel"></label>
+        <select id="lbCapacity"><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select>
+        <label for="lbBotProfile" id="lbBotProfileLabel"></label>
+        <select id="lbBotProfile"><option value="standard"></option><option value="cautious"></option><option value="aggressive"></option><option value="combos"></option><option value="debt"></option></select>
+      </div>
       <div class="section actions-row"><button class="btn" id="btnAddBot" data-i18n="addBot"></button><button class="btn" id="btnRmBot" data-i18n="rmBot"></button></div>
       <div class="section"><button class="btn primary wide" id="btnRoomStart" data-i18n="startGame"></button></div>
       <div class="section"><span class="label" data-i18n="matchMode"></span>

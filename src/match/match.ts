@@ -28,6 +28,7 @@ export function startGame(room: Table) {
       chips: Array(n).fill(0),
       tokens: names.map(() => []),
       col: Array(n).fill(false),
+      withdrawn: Array(n).fill(false),
       colUsed: Array(n).fill(false),
       setup: Array(n).fill(0),
       offers: names.map(() => []),
@@ -43,6 +44,8 @@ export function startGame(room: Table) {
       horseUsed: false,
       inv: names.map(() => []),
       dark: names.map(() => []),
+      purchases: {},
+      marketDebt: {},
     };
     newDeal(room);
     return null;
@@ -53,6 +56,7 @@ export function startGame(room: Table) {
     { ...room.rules, cards: { ...room.cards } },
     room.random,
   );
+  if (room.network) room.G.gid = room.network.gameId();
   return null;
 }
 
@@ -61,7 +65,7 @@ export function startGame(room: Table) {
 const DRAFT_MS = 30000,
   SHOP_MS = 45000;
 const isBotSeat = (room: Table, i: number) => room.members[i].bot;
-const alive = (M: MatchState) => M.col.map((c, i) => (c ? -1 : i)).filter((i) => i >= 0);
+const alive = (M: MatchState) => M.col.map((c, i) => (c || M.withdrawn[i] ? -1 : i)).filter((i) => i >= 0);
 export function matchFor(room: Table, seat) {
   const M = room.M;
   if (!M) return null;
@@ -74,6 +78,7 @@ export function matchFor(room: Table, seat) {
     chips: M.chips,
     tokens: M.tokens,
     col: M.col,
+    withdrawn: M.withdrawn,
     colUsed: seat !== null ? M.colUsed[seat] : true,
     setup: M.setup,
     offers: seat !== null ? M.offers[seat] : [],
@@ -132,13 +137,15 @@ export function newDeal(room: Table) {
     }),
     room.random,
   );
+  if (room.network) G.gid = room.network.gameId();
   for (let i = 0; i < n; i++) {
     const p = G.players[i];
-    if (M.col[i]) {
+    if (M.col[i] || M.withdrawn[i]) {
       p.hand = [];
       p.out = true;
       p.elim = true;
-      p.collector = true;
+      p.collector = M.col[i] && !M.withdrawn[i];
+      p.left = M.withdrawn[i];
       continue;
     }
     if (M.tokens[i].includes('light')) p.hand.pop();
@@ -176,7 +183,7 @@ export function newDeal(room: Table) {
   phaseTimer(room, DRAFT_MS, () => endDraft(room));
   // bot collectors strike once, somewhere in the deal
   for (let i = 0; i < n; i++)
-    if (M.col[i] && isBotSeat(room, i))
+    if (M.col[i] && !M.withdrawn[i] && isBotSeat(room, i))
       room.clock.after(
         () => {
           if (room.M === M && room.G === G && M.phase === 'play' && G.winner === null && !M.colUsed[i]) {
@@ -304,15 +311,17 @@ export function afterChange(room: Table, next) {
     M.phase = 'over';
     room.clock.cancel(room.phaseTimer);
     M.deadline = 0;
-    M.champ = live.length ? live[0] : M.debt.indexOf(Math.min(...M.debt));
-    return;
+    const eligible = M.debt.map((_, i) => i).filter((i) => !M.withdrawn[i]);
+    M.champ = live[0] ?? eligible.reduce<number | null>((best, i) => best === null || M.debt[i] < M.debt[best] ? i : best, null);
+    return true;
   }
   next();
+  return false;
 }
 export function openShop(room: Table) {
   const M = room.M;
   M.phase = 'shop';
-  M.done = M.names.map((_, i) => !!M.col[i]);
+  M.done = M.names.map((_, i) => M.col[i] || M.withdrawn[i]);
   M.offers = M.tokens.map((owned) =>
     TOKENS.filter((id) => !owned.includes(id))
       .sort(() => room.random() - 0.5)
@@ -351,7 +360,22 @@ export function botShop(M: MatchState, i: number) {
   while (M.chips[i] >= PRICES.pay && M.debt[i] > 0) buy(M, i, { k: 'pay' });
 }
 export function buy(M: MatchState, i: number, a: { k: string; id?: string; target?: number }) {
-  if (M.phase !== 'shop' || M.col[i] || M.done[i]) return false;
+  const affected = a.k === 'interest' ? a.target : i;
+  const before = M.debt[affected];
+  if (!applyPurchase(M, i, a)) return false;
+  const key = a.id && (a.k === 'token' || a.k === 'item') ? a.k + ':' + a.id : a.k;
+  M.purchases[key] = (M.purchases[key] ?? 0) + 1;
+  const change = M.debt[affected] - before;
+  if (change) {
+    const debt = M.marketDebt[a.k] ??= { added: 0, removed: 0 };
+    debt.added += Math.max(0, change);
+    debt.removed += Math.max(0, -change);
+  }
+  return true;
+}
+
+function applyPurchase(M: MatchState, i: number, a: { k: string; id?: string; target?: number }) {
+  if (M.phase !== 'shop' || M.col[i] || M.withdrawn[i] || M.done[i]) return false;
   if (a.k === 'token') {
     if (!M.offers[i].includes(a.id) || M.chips[i] < PRICES.token || M.tokens[i].length >= 3)
       return false;
@@ -390,7 +414,7 @@ export function buy(M: MatchState, i: number, a: { k: string; id?: string; targe
   }
   if (a.k === 'setup' || a.k === 'interest') {
     const t = a.target;
-    if (!Number.isInteger(t) || t === i || !M.names[t] || M.col[t] || M.chips[i] < PRICES[a.k])
+    if (!Number.isInteger(t) || t === i || !M.names[t] || M.col[t] || M.withdrawn[t] || M.chips[i] < PRICES[a.k])
       return false;
     M.chips[i] -= PRICES[a.k];
     if (a.k === 'setup') M.setup[t] += 3;

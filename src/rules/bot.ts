@@ -2,6 +2,16 @@ import { DRAW_VAL, SIDE_COLORS, debtValue, isBad, other } from './cards.ts';
 import { DEAL_TIER, hasDeal, nDark, nLight } from './contracts.ts';
 import { comboCands, comboOf, comboWorth } from './poker.ts';
 
+export const BOT_PROFILES = ['standard', 'cautious', 'aggressive', 'combos', 'debt'] as const;
+export type BotProfile = (typeof BOT_PROFILES)[number];
+const weights = {
+  standard: { attack: 0, risk: 0, combination: 0, debt: 0 },
+  cautious: { attack: -0.55, risk: 8, combination: 0, debt: 0.04 },
+  aggressive: { attack: 1.45, risk: -3, combination: 0, debt: 0 },
+  combos: { attack: 0, risk: 0, combination: 10, debt: 0 },
+  debt: { attack: -0.2, risk: 4, combination: 4, debt: 0.24 },
+} satisfies Record<BotProfile, { attack: number; risk: number; combination: number; debt: number }>;
+
 export const Bot = {
   // who to aim the revolver at: whoever is closest to going out
   gambleTarget(G, pi) {
@@ -104,7 +114,8 @@ export const Bot = {
       }
     return best;
   },
-  choose(g, pi) {
+  choose(g, pi, profile: BotProfile = 'standard') {
+    const strategy = weights[profile];
     const p = g.players[pi];
     const opts = g.playable(pi);
     if (!opts.length) return null;
@@ -136,6 +147,9 @@ export const Bot = {
         }
       } else {
         const dv = DRAW_VAL[f.v] || 0;
+        s += strategy.attack * dv;
+        if (p.limit > 0) s += strategy.debt * debtValue(f);
+        if (f.v === 'glass' || f.v === 'pill' || f.v === 'loan') s -= strategy.risk;
         if (f.c === 'w') s -= p.hand.length > 3 ? 8 : 0;
         if (dv) s += dv * 1.5 + (nl <= 3 ? 20 : 0);
         if (f.v === 'skip' || f.v === 'rev') s += nl <= 3 ? 12 : 3;
@@ -195,7 +209,7 @@ export const Bot = {
           top = { lead, cs };
         }
       }
-      if (top && topW + 4 >= bestScore - 10) {
+      if (top && topW + 4 + strategy.combination >= bestScore - 10) {
         const extra = top.cs.filter((c) => c !== top.lead),
           lf = g.f(top.lead),
           rest = p.hand.filter((c) => !top.cs.includes(c));

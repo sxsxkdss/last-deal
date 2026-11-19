@@ -2,6 +2,7 @@ import { createMusic, tracks } from './music.ts';
 // Presentation from sxsxkdss/last-deal-legacy at 98d0478. Game actions go through the local TypeScript table.
 import { playCue } from './cues.ts';
 import { localConnection } from './connection.ts';
+import { webConnection } from './websocket.ts';
 import { Game } from '../rules/game.ts';
 import { Bot } from '../rules/bot.ts';
 import { ALPHA, EXTRA_CARDS, FACES, PRESETS, RULE_ALL, SIDE_COLORS, cardCode, other } from '../rules/cards.ts';
@@ -1501,15 +1502,30 @@ function initials(name) {
 }
 
 
-// ================= LOCAL TABLE =================
-const conn = localConnection(onServer);
+// ================= TABLE CONNECTION =================
+const local = localConnection(onServer);
+const online = webConnection(onServer);
+let conn = local, listedRooms = [], opponentSelection = new Map();
+let networkDeadline = null;
+const networkText = (ru, en) => LANG === 'ru' ? ru : en;
 function setNet(t) { $('netTag').textContent = t || (roomCode ? STR[LANG].room(roomCode) : ''); $('netBanner').textContent = t; $('netBanner').classList.toggle('hidden', !t); }
 function onServer(m) {
   switch (m.t) {
     case 'joined': roomCode = m.code; startMsg(''); setNet(''); break;
+    case 'directory': listedRooms = m.rooms; drawDirectory(); break;
+    case 'disconnected': setNet(networkText('Восстанавливаем соединение…', 'Reconnecting…')); break;
     case 'error':
-      { const txt = m.code === 'no-room' ? t('noRoom') : m.code === 'start' ? t('needMore') : m.code === 'bad' ? t('badReq') : m.msg;
-        if ($('start').classList.contains('hidden')) $('lbWait').textContent = txt; else startMsg(txt); }
+      { const txt = ({
+          'no-room': t('noRoom'), start: t('needMore'), bad: t('badReq'),
+          expired: networkText('Место больше недоступно.', 'Your seat has expired.'),
+          offline: networkText('Сервер недоступен.', 'The server is unavailable.'),
+          unavailable: networkText('Комната недоступна или заполнена.', 'The room is unavailable or full.'),
+          maintenance: networkText('Обновление сервера. Новые матчи временно отключены.', 'Server update pending. New matches are paused.'),
+          forbidden: networkText('Действие недоступно.', 'This action is unavailable.'),
+          'room-failed': networkText('Комната закрылась из-за ошибки.', 'The room closed after an error.'),
+        })[m.code] || m.msg || t('badReq');
+        if (m.code === 'expired' || m.code === 'room-failed') { roomCode = ''; G = MATCH = null; closeModal(); show('start'); }
+        if ($('start').classList.contains('hidden')) { $('lbWait').textContent = txt; toast(txt); } else startMsg(txt); }
       break;
     case 'replaced': conn.close(); roomCode = ''; show('start'); startMsg(t('otherTab')); break;
     case 'left': break;
@@ -1538,6 +1554,8 @@ const setHTML = (el, html) => { if (el && el.__html !== html) { el.__html = html
 function onState(m) {
   let g; try { g = deserialize(m.st); } catch (e) { return; }
   isHost = !!m.host; lastLobby = m.lobby || lastLobby; away = m.st.aw || [];
+  opponentSelection = new Map(m.selection || []);
+  networkDeadline = m.deadline == null ? null : Date.now() + Math.max(0, m.deadline - m.serverTime);
   MATCH = m.match || null; if (MATCH) MATCH.until = Date.now() + (MATCH.left || 0);
   // keep card ids stable so only genuinely new cards animate in
   if (G && G.players[ME] && g.gid === lastGid && m.seat === ME) {
@@ -1609,7 +1627,6 @@ function onToggle(e) {
 }
 for (const id of ['lbRules', 'lbCards']) $(id).addEventListener('change', onToggle);
 $('pname').value = S.name;
-$('btnCreate').onclick = createRoom;
 document.querySelectorAll('[data-rules]').forEach(b => b.onclick = showRules);
 $('btnSound').onclick = () => { S.sound = !S.sound; saveSettings(); setTimeout(() => AMB.apply(), 0); $('btnSound').textContent = S.sound ? t('soundOn') : t('soundOff'); if (S.sound) { SFX.init(); SFX.play('turn'); } };
 const musicControls = () => `<div class="music-player" data-music-player>
@@ -1659,6 +1676,17 @@ function applyStatic() {
   seg($('segLang'), Object.keys(LANGS), 'lang', k => LANGS[k], () => setLang(S.lang));
   drawToggles();
   updateMusicControls();
+  $('onlineTitle').textContent = networkText('Играть по сети', 'Play online');
+  $('btnCreateOnline').textContent = networkText('Создать комнату', 'Create room');
+  $('btnListRooms').textContent = networkText('Открытые комнаты', 'Public rooms');
+  $('joinLabel').textContent = networkText('Код комнаты', 'Room code');
+  $('btnJoinOnline').textContent = networkText('Войти', 'Join');
+  $('lbPublicLabel').textContent = networkText('Публичная комната', 'Public room');
+  $('lbCapacityLabel').textContent = networkText('Мест за столом', 'Seats');
+  $('lbBotProfileLabel').textContent = networkText('Стратегия нового бота', 'New bot strategy');
+  const botProfiles = LANG === 'ru' ? ['Обычная', 'Осторожная', 'Агрессивная', 'Комбинации', 'Контроль долга'] : ['Standard', 'Cautious', 'Aggressive', 'Combinations', 'Debt management'];
+  [...$('lbBotProfile').options].forEach((option, i) => { option.textContent = botProfiles[i]; });
+  drawDirectory();
 }
 function setFx(m) { S.fx = m; saveSettings(); document.body.classList.toggle('lite', m !== 'full'); }
 $('btnFx').onclick = showSettings;
@@ -1678,7 +1706,28 @@ JUICE.startBg();
 function readName() { S.name = cleanName($('pname').value) || 'Player'; saveSettings(); $('lbName').value = S.name; return S.name; }
 function show(screen) { for (const id of ['start', 'lobby', 'game']) $(id).classList.toggle('hidden', id !== screen); if (screen !== 'game') document.body.classList.remove('dark'); }
 function startMsg(t) { $('startMsg').textContent = t; }
-function createRoom() { readName(); startMsg(t('connServer')); roomCode = ''; conn.open({ t: 'create', name: S.name, rules: S.rules, cards: S.cards, mode: S.mode, limit: S.limit }); }
+function createRoom(transport) { readName(); startMsg(t('connServer')); roomCode = ''; if (conn !== transport) conn.close(); conn = transport; conn.open({ t: 'create', name: S.name, rules: S.rules, cards: S.cards, mode: S.mode, limit: S.limit }); }
+function joinRoom(code) {
+  code = code.trim().toUpperCase();
+  if (!/^[A-Z2-9]{6}$/.test(code)) { startMsg(t('badReq')); return; }
+  if (conn !== online) conn.close();
+  conn = online;
+  conn.open({ t: 'join', name: readName(), code });
+}
+function drawDirectory() {
+  setHTML($('publicRooms'), listedRooms.map(r => `<div class="seatrow"><span>${esc(r.code)} · ${r.players}/${r.capacity} · ${t(r.mode === 'debt' ? 'modeDebt' : 'modeOne')}${r.live ? ' · ' + t('inProgress') : ''}</span><button class="btn quiet" type="button" data-room-code="${esc(r.code)}" ${!r.joinable ? 'disabled' : ''}>${networkText('Войти', 'Join')}</button></div>`).join(''));
+}
+$('btnCreate').onclick = () => createRoom(local);
+$('btnCreateOnline').onclick = () => createRoom(online);
+$('btnListRooms').onclick = () => online.open({ t: 'list' });
+$('joinOnline').onsubmit = (event) => { event.preventDefault(); joinRoom($('joinCode').value); };
+$('publicRooms').onclick = (event) => { const button = event.target.closest('[data-room-code]'); if (button) joinRoom(button.dataset.roomCode); };
+$('lbPublic').onchange = (event) => conn.send({ t: 'settings', public: event.target.checked });
+$('lbCapacity').onchange = (event) => conn.send({ t: 'settings', capacity: +event.target.value });
+if (location.protocol === 'https:' || location.protocol === 'http:') {
+  $('onlineRooms').classList.remove('hidden');
+  queueMicrotask(() => { if (online.resume()) conn = online; });
+}
 function leaveRoom() {
   conn.close();
   roomCode = ''; G = null; busy = false; lastGid = null; closeModal(); show('start'); setNet('');
@@ -1694,15 +1743,18 @@ $('lbName').addEventListener('input', () => {
   }, 350);
 });
 $('btnRoomStart').onclick = () => conn.send({ t: 'start' });
-$('btnAddBot').onclick = () => conn.send({ t: 'addbot' });
+$('btnAddBot').onclick = () => conn.send({ t: 'addbot', profile: $('lbBotProfile').value });
 $('btnRmBot').onclick = () => conn.send({ t: 'rmbot' });
 function renderLobby(l) {
-  $('lbHint').textContent = LANG === 'ru' ? 'Добавьте ботов и начните игру.' : 'Add bots to start playing.';
+  $('lbHint').textContent = l.code ? networkText('Код комнаты: ', 'Room code: ') + l.code : networkText('Добавьте ботов и начните игру.', 'Add bots to start playing.');
+  $('lbOnlineConfig').classList.toggle('hidden', !l.code);
+  $('lbPublic').checked = !!l.public;
+  $('lbCapacity').value = l.capacity || 6;
   $('lbHost').classList.toggle('hidden', !l.host);
   $('lbGuest').classList.toggle('hidden', !!l.host);
   if (document.activeElement !== $('lbName')) $('lbName').value = S.name;
   $('lbSeats').innerHTML = l.players.map(([name, on, host, me, bot]) => `<div class="seatrow ${me ? 'me' : ''}"><span class="who"><span class="ini">${bot ? 'AI' : initials(name)}</span>${esc(name)}</span><span class="label ${bot ? 'bot' : ''}">${bot ? t('botTag') : host ? t('host') : t('player')}${on ? '' : ' · ' + t('away')}</span></div>`).join('');
-  $('btnAddBot').disabled = l.players.length >= 6;
+  $('btnAddBot').disabled = l.players.length >= (l.capacity || 6);
   $('btnRmBot').disabled = !l.players.some(p => p[4]);
   if (l.host) {
     // the host's own toggles drive the room; keep them in step with what the server holds
@@ -1791,8 +1843,10 @@ function selInfo(list) {
   if (G.rules.combos !== false && faces.every(f => isNumF(f) || isJoker(f))) { cb = comboOf(faces); if (cb) kind = 'combo'; }
   if (!kind && faces.every(f => f.v === faces[0].v && (f.c === 'w') === (faces[0].c === 'w'))) kind = 'same';
   if (!kind) return { cards, ok: false, kind: 'none' };
-  const ordered = conn.selection(cards.map(c => c.wid));
-  const lead = ordered && cards.find(c => c.wid === ordered[0]);
+  const lead = conn === online ? cards.find(fits) : (() => {
+    const ordered = local.selection(cards.map(c => c.wid));
+    return ordered && cards.find(c => c.wid === ordered[0]);
+  })();
   if (!lead) return { cards, ok: false, kind, cb, why: 'lead' };
   return { cards, lead, extra: cards.filter(c => c !== lead), ok: true, kind, cb };
 }
@@ -1959,7 +2013,7 @@ function attachCard(el, card) {
     if (e.button > 0) return;
     const card = el._card; if (!card) return;
     const sx = e.clientX, sy = e.clientY, r0 = el.getBoundingClientRect();
-    let ghost = null, els = null, rects = null, src = -1, target = -1, order = null;
+    let ghost = null, els = null, rects = null, src = -1, target = -1, order = null, lastOrder = -Infinity;
     const handBox = $('hand').getBoundingClientRect();
     const inHand = y => y > handBox.top - 40;
     try { el.setPointerCapture(e.pointerId); } catch (x) {}
@@ -1991,7 +2045,18 @@ function attachCard(el, card) {
         const onPile = (usable(card) || (selIds.includes(card.id) && selInfo() && selInfo().ok)) && overDiscard(ev.clientX, ev.clientY);
         $('discard').classList.toggle('drop', onPile);
         const t2 = !onPile && inHand(ev.clientY) && src >= 0 ? nearestSlot(rects, r0.left + dx + r0.width / 2, r0.top + dy + r0.height / 2) : src;
-        if (t2 !== target) { target = t2; order = previewOrder(els, rects, src, target); if (target !== src) SFX.play('click'); }
+        if (t2 !== target) {
+          target = t2; order = previewOrder(els, rects, src, target);
+          if (target !== src) SFX.play('click');
+          const now = performance.now();
+          if (conn === online && order && now - lastOrder >= 90) {
+            lastOrder = now;
+            const shown = new Set(els.map(node => String(node._card?.wid)));
+            const preview = order.map(i => els[i]._card?.wid);
+            const cards = sortedHand(G.players[ME].hand).map(c => shown.has(String(c.wid)) ? preview.shift() : c.wid);
+            online.order(cards, [...new Set([card.wid, ...selCards().map(c => c.wid)])]);
+          }
+        }
       }
     };
     const up = ev => {
@@ -2403,7 +2468,7 @@ function render() {
   const me = G.players[ME];
   document.body.classList.toggle('dark', G.side === 'D');
   const ob = otherSide();
-  const tk = `${G.turn}:${G.roulette}:${G.seq}:${G.gid}`;
+  const tk = `${G.turn}:${G.roulette}:${conn === online ? G.turnNo : G.seq}:${G.gid}`;
   if (tk !== turnKey) { const was = turnKey.split(':')[0]; turnKey = tk; turnStartedAt = Date.now(); if (myTurnNow()) { SFX.play('turn'); if (was !== String(ME)) toast(t('yourTurnStamp')); } }
   const elapsed = (Date.now() - turnStartedAt) / 1000;
   const cc = G.roulette !== null ? 'var(--muted)' : CVAR[G.color];
@@ -2416,7 +2481,13 @@ function render() {
   const seatHTML = i => {
     const p = G.players[i];
     const n = p.hand.length, fanN = Math.min(n, 12);
-    const fan = p.hand.slice(-fanN).map((c, k) => { const bf = c[ob] || { c: 'w' }; return `<i class="${ob} ${bf.c === 'w' ? 'w' : ''}" style="left:${k * 9}px;${bf.c !== 'w' ? `background:${CVAR[bf.c]}` : ''}"></i>`; }).join('');
+    const picked = opponentSelection.get(i) || [];
+    const fan = p.hand.slice(-fanN).map((c, k) => {
+      const bf = c[ob] || { c: 'w' };
+      const selected = picked.includes(n - fanN + k);
+      const label = conn === online ? cardName(bf) : '';
+      return `<i class="${ob} ${bf.c === 'w' ? 'w' : ''}" title="${esc(label)}" style="left:${k * 9}px;${selected ? 'translate:0 -5px;' : ''}${bf.c !== 'w' ? `background:${CVAR[bf.c]}` : ''}">${conn === online ? esc(/^\d$/.test(bf.v) ? bf.v : '') : ''}</i>`;
+    }).join('');
     const turn = (G.roulette !== null ? G.roulette === i : G.turn === i) && G.winner === null;
     const tags = [];
     if (G.winner === i) tags.push(`<b>${t('tagWinner')}</b>`);
@@ -2430,7 +2501,7 @@ function render() {
       else tags.unshift(`<b>${t('tagDebt', p.debt, p.limit || MATCH.limit)}</b>`, `${t('tagChips', MATCH.chips[i])}`);
     }
     if (!tags.length) tags.push(t('tagPlayer'));
-    const limit = away[i] ? AWAY_MS : IDLE_MS;
+    const limit = conn === online && networkDeadline != null ? Math.max(1, networkDeadline - turnStartedAt) : away[i] ? AWAY_MS : IDLE_MS;
     const timer = turn ? `<div class="timer" data-ts="${turnStartedAt}" style="animation-duration:${limit / 1000}s"></div>` : ''; // the delay is set once, below, so the seat markup stays the same all turn
     const dealRow = MATCH && !MATCH.col[i] ? dealBadges(p) : '';
     return `<div class="opp ${turn ? 'turn' : ''} ${p.out && G.winner !== i ? 'out' : ''} ${MATCH && MATCH.col[i] ? 'collector' : ''}" id="opp${i}">
@@ -2547,6 +2618,7 @@ function render() {
   // hand (left alone while a card is being dragged)
   if (!dragging) {
     const allCards = sortedHand(me.hand);
+    if (conn === online && allCards.length <= 1200) online.order(allCards.map(c => c.wid), selCards().map(c => c.wid));
     const wrap = $('hand');
     const rootCw = LAY.discardW / 1.3 || 76;
     const mobile = innerWidth <= 820;
@@ -3075,6 +3147,7 @@ function matchOverlay() {
   if (M.phase === 'over') return drawOver(M);
 }
 function drawDraft(M) {
+  if (M.withdrawn?.[ME]) return openModal(`<h2>${t('draftTitle')}</h2><p>${networkText('Вы выбыли из матча.', 'You are out of this match.')}</p>`);
   if (M.col[ME]) return openModal(`<h2>${t('draftTitle')}</h2><p>${t('draftCol')}</p><p class="mono" id="phaseClock">${t('secsLeft', secsLeft())}</p>`);
   if (M.passed) return openModal(`<h2>${t('draftTitle')}</h2><p>${t('draftWait')}</p><p class="mono" id="phaseClock">${t('secsLeft', secsLeft())}</p>`);
   const hand = sortedHand(G.players[ME].hand), to = G.players[G.nextIdx(ME, 1)];

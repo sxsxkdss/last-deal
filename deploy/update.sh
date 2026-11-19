@@ -21,8 +21,10 @@ fi
 GIT_TERMINAL_PROMPT=0 git --git-dir="$mirror" fetch --no-tags --depth=1 "$repo_url" "refs/heads/$branch"
 commit=$(git --git-dir="$mirror" rev-parse --verify 'FETCH_HEAD^{commit}')
 release="$site/releases/$commit"
+runtime="$site/runtime/$commit"
+server_deploy="${LAST_DEAL_SERVER_DEPLOY:-0}"
 
-if [[ ! -s "$release/index.html" ]]; then
+if [[ ! -s "$release/index.html" || ( "$server_deploy" == 1 && ! -f "$runtime/server/main.ts" ) ]]; then
   stage=$(mktemp -d "$site/.build.XXXXXXXX")
   cleanup() { rm -rf -- "$stage"; }
   trap cleanup EXIT
@@ -35,7 +37,23 @@ if [[ ! -s "$release/index.html" ]]; then
     test -s dist/index.html
     test -d dist/assets
   )
-  mv -T -- "$stage/dist" "$release"
+  if [[ "$server_deploy" == 1 ]]; then
+    test -f "$stage/server/main.ts"
+  fi
+  if [[ ! -s "$release/index.html" ]]; then
+    mv -T -- "$stage/dist" "$release"
+  fi
+  if [[ "$server_deploy" == 1 && ! -f "$runtime/server/main.ts" ]]; then
+    mkdir -p -- "$site/runtime"
+    mv -T -- "$stage" "$runtime"
+  fi
+fi
+
+if [[ "$server_deploy" == 1 ]]; then
+  stage_ref=$(mktemp "$site/.candidate.XXXXXXXX")
+  printf '%s\n' "$commit" > "$stage_ref"
+  mv -Tf -- "$stage_ref" "$site/candidate"
+  exit 0
 fi
 
 if [[ "$(readlink "$site/current" || true)" != "releases/$commit" ]]; then

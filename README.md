@@ -4,7 +4,7 @@
 
 ## English
 
-Last Deal is a browser card game for 2–6 seats. At the classic table, one person plays against up to five bots. Cards have day and night faces, and switching phases can turn a safe hand into a liability. Play a single round or try a debt match with contracts, shops, and collectors. The game runs in the browser, and hosting it only requires a static web server.
+Last Deal is a browser card game for 2–6 seats. Open a local table against bots or create an online room for people and bots. Cards have day and night faces. Play a single round or try a debt match with contracts, shops, and collectors.
 
 ### How to play
 
@@ -26,6 +26,8 @@ npm run dev
 ```
 
 Open the URL printed by Vite. Use `npm run build` for a production build in `dist/` or `npm test` to run the rule tests.
+
+For online play, run `npm start` in a second terminal. Vite proxies `/ws` to the Node server on local port 3000. Use **Play online** in two separate browser profiles and join the room by code. See the [network protocol](docs/network-protocol.md) and [server deployment steps](deploy/README.md#websocket-server--сетевой-сервер).
 
 ### Deploy to your VPS
 
@@ -86,7 +88,7 @@ Project code and documentation are released under the [MIT License](LICENSE). Th
 
 ## Русский
 
-Last Deal — браузерная карточная игра на 2–6 мест. За классическим столом один человек играет против одного–пяти ботов. У карт есть дневная и ночная стороны, и после смены фазы хорошая рука может стать обузой. Можно сыграть одну раздачу или матч на долг со сделками, лавками и коллекторами. Игра работает в браузере, для публикации достаточно статического веб-сервера.
+Last Deal — браузерная карточная игра на 2–6 мест. Можно открыть локальный стол против ботов или создать сетевую комнату для людей и ботов. У карт есть дневная и ночная стороны. Сыграй одну раздачу или матч на долг со сделками, лавками и коллекторами.
 
 ### Как играть
 
@@ -108,6 +110,8 @@ npm run dev
 ```
 
 Открой адрес, который покажет Vite. Команда `npm run build` собирает сайт в `dist/`, а `npm test` запускает тесты правил.
+
+Для сетевой игры запусти `npm start` во втором терминале. Vite направляет `/ws` на локальный порт 3000. В двух профилях браузера открой **Играть по сети** и войди в комнату по коду. См. [сетевой протокол](docs/network-protocol.md) и [установку серверной службы](deploy/README.md#websocket-server--сетевой-сервер).
 
 ### Установка на свой VPS
 

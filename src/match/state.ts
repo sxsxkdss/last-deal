@@ -31,6 +31,7 @@ export interface MatchState {
   chips: number[];
   tokens: string[][];
   col: boolean[];
+  withdrawn: boolean[];
   colUsed: boolean[];
   setup: number[];
   offers: string[][];
@@ -47,4 +48,6 @@ export interface MatchState {
   horseCount?: number;
   inv: string[][];
   dark: string[][];
+  purchases: Record<string, number>;
+  marketDebt: Record<string, { added: number; removed: number }>;
 }

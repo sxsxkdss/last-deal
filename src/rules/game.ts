@@ -293,10 +293,15 @@ export class Game {
   addLog(msg, cls = '', k = null, a = null) {
     this.log.push({ msg, cls, k, a });
     if (this.log.length > 200) this.log.shift();
+    this.observeLog?.(k, a);
   }
+  observeLog?: (key: string, args: unknown) => void;
+  observeEvent?: (event: GameEvent) => void;
   ev(type, data = {}) {
-    this.events.push(Object.assign({ type, n: ++this.evSeq }, data));
+    const event = Object.assign({ type, n: ++this.evSeq }, data);
+    this.events.push(event);
     if (this.events.length > 24) this.events.shift();
+    this.observeEvent?.(event);
     if (type === 'flip') this.rentPay();
   }
   active() {

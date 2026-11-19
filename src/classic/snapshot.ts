@@ -1,13 +1,25 @@
 import type { Game } from '../rules/game.ts';
-import { ALPHA, faceIdx, cardCode, other } from '../rules/cards.ts';
+import { ALPHA, faceIdx, cardCode, other, RULE_ALL } from '../rules/cards.ts';
 import { hasDeal } from '../rules/contracts.ts';
+import { visibleEvents } from '../match/visibility.ts';
 
 // Adapt the TypeScript table to the original renderer’s seat-specific snapshot.
-export function serialize(g: Game, viewer: number, logN = 12) {
+export function serialize(g: Game, viewer: number, logN = 12, orders?: ReadonlyMap<number, readonly number[]>) {
   const ob = other(g.side);
+  const hands = g.players.map(({ hand: cards }, i) => {
+    const order = orders?.get(i);
+    if (!order?.length || i === viewer) return cards;
+    const byId = new Map(cards.map((c) => [c.id, c]));
+    const sorted = order.flatMap((id) => {
+      const card = byId.get(id);
+      byId.delete(id);
+      return card ? [card] : [];
+    });
+    return sorted.concat([...byId.values()]);
+  });
   return {
     gid: g.gid,
-    ru: g.rules,
+    ru: Object.fromEntries(RULE_ALL.map((key) => [key, !!g.rules[key]])),
     sd: g.side,
     p: g.players.map((p, i) => [
       p.name,
@@ -15,11 +27,11 @@ export function serialize(g: Game, viewer: number, logN = 12) {
       p.peer || '',
       i === viewer
         ? p.hand.map(cardCode).join('')
-        : '!' + p.hand.map((c) => ALPHA[faceIdx(ob, c[ob])]).join(''),
+        : '!' + hands[i].map((c) => ALPHA[faceIdx(ob, c[ob])]).join(''),
       (p.out ? 1 : 0) | (p.elim ? 2 : 0) | (p.human ? 16 : 0) | (p.shield ? 32 : 0) | (p.left ? 64 : 0),
       (p.oweN || 0) + ((p.owed && p.owed.length) || 0),
       p.loan || 0,
-      p.hand
+      hands[i]
         .map((c, k) => (c.lock || c.chain ? [k, c.chain || 0, c.lock ? 1 : 0] : null))
         .filter(Boolean),
       [
@@ -38,22 +50,22 @@ export function serialize(g: Game, viewer: number, logN = 12) {
         Object.keys(p.used || {}).join(','),
         p.exT ?? -1,
         p.puppetLast ?? -1,
-        p.angelBlock || 0,
+        i === viewer ? p.angelBlock || 0 : 0,
       ],
-      p.hand.map((c) => (c.uniq ? 1 : 0)).join(''),
+      hands[i].map((c) => (c.uniq ? 1 : 0)).join(''),
       [
         (p.inv || []).join(','),
         Object.entries(p.fx || {})
           .map(([k, v]) => (v === true ? k : k + ':' + v))
           .join(','),
-        p.buff || 0,
+        i === viewer ? p.buff || 0 : 0,
       ],
       i === viewer ? p.hand.map((c) => c.id) : null,
     ]),
     of: g.offer ? [g.offer.pi, g.offer.kind, viewer === g.offer.pi ? g.offer.opts : []] : null,
     hz:
       g.horse && g.horse.left > 0
-        ? [g.horse.k, g.horse.v, g.horse.left, (g.horse.curses || []).join(',')]
+        ? [g.horse.k, g.horse.v, g.horse.left, (g.horse.curses || []).map((curse, i) => i === viewer ? curse : '').join(',')]
         : null,
     nf:
       viewer >= 0 && g.players[viewer] && hasDeal(g.players[viewer], 'sharp') ? cardCode(g.next) : null,
@@ -86,7 +98,7 @@ export function serialize(g: Game, viewer: number, logN = 12) {
     x: g.winner === null ? -1 : g.winner,
     s: g.seq,
     l: g.log.slice(-logN).map((l) => [String(l.msg).slice(0, 200), l.cls, l.k || null, l.a || null]),
-    ev: g.events.slice(-12),
+    ev: visibleEvents(g.events, viewer).slice(-12),
     es: g.evSeq,
   };
 }
