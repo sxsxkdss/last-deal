@@ -36,14 +36,16 @@ export function webConnection(receive: (message: any) => void) {
       if (silentCommands.size > 64) silentCommands.delete(silentCommands.values().next().value);
     }
     const message = { ...command };
-    for (const [key, allowed] of [
-      ['rules', RULE_ALL],
-      ['cards', EXTRA_CARDS],
-    ] as const) {
-      if (message[key] && typeof message[key] === 'object') {
-        message[key] = Object.fromEntries(
-          Object.entries(message[key]).filter(([k]) => allowed.includes(k)),
-        );
+    if (message.t === 'create' || message.t === 'settings') {
+      for (const [key, allowed] of [
+        ['rules', RULE_ALL],
+        ['cards', EXTRA_CARDS],
+      ] as const) {
+        if (message[key] && typeof message[key] === 'object') {
+          message[key] = Object.fromEntries(
+            Object.entries(message[key]).filter(([k]) => allowed.includes(k)),
+          );
+        }
       }
     }
     socket.send(JSON.stringify({ v: PROTOCOL, n: id, revision, game, phase, command: message }));

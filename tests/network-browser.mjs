@@ -37,6 +37,20 @@ try {
   };
   const a = await create('Audit A'),
     b = await create('Audit B', { width: 360, height: 760 });
+  const orders = [];
+  const replies = new Map();
+  let hostSocket;
+  a.on('websocket', (socket) => {
+    hostSocket = socket;
+    socket.on('framesent', ({ payload }) => {
+      const message = JSON.parse(payload);
+      if (message.command.t === 'order') orders.push(message);
+    });
+    socket.on('framereceived', ({ payload }) => {
+      const message = JSON.parse(payload);
+      if (message.t === 'ack') replies.set(message.n, message);
+    });
+  });
   await a.locator('#btnCreate').click();
   await a.locator('#lobby').waitFor({ state: 'visible' });
   const code = await a.locator('#lbCode').textContent();
@@ -70,6 +84,22 @@ try {
   await a.locator('[data-mode="one"]').click();
   await a.locator('#btnRoomStart').click();
   await Promise.all([a, b].map((page) => page.locator('#game').waitFor({ state: 'visible' })));
+  const preSort = orders.length;
+  for (let i = 0; i < 3; i++) await a.locator('#btnSort').click();
+  const sorted = orders.slice(preSort);
+  assert.ok(sorted.length > 0, 'Sorting sends the new hand order');
+  for (const { n, command } of sorted) {
+    assert.equal(command.cards.length, 7);
+    assert.ok(command.cards.every(Number.isSafeInteger));
+    const reply = replies.get(n) ?? JSON.parse((await hostSocket.waitForEvent('framereceived', {
+      timeout: 5000,
+      predicate: ({ payload }) => {
+        const message = JSON.parse(payload);
+        return message.t === 'ack' && message.n === n;
+      },
+    })).payload);
+    assert.equal(reply.ok, true, 'The server accepts the sorted order');
+  }
   const actor = (await a.locator('#bottom').evaluate((el) => el.classList.contains('myturn'))) ? a : b;
   const opponent = actor === a ? b : a;
   await actor.locator('#drawpile').click();
@@ -87,7 +117,7 @@ try {
     .click({ position: { x: 8, y: 18 } });
   await received;
   assert.deepEqual(errors, []);
-  console.log('Online browser: room code, public list, invitation, bot profiles, play and resume.');
+  console.log('Online browser: room code, public list, invitation, bot profiles, sorting, play and resume.');
 } finally {
   await browser?.close();
   if (vite) await new Promise((resolve) => vite.httpServer.close(resolve));
