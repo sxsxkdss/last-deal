@@ -83,6 +83,7 @@ test('WebSocket room, hand order, idempotent draw, resume, and maintenance', asy
     assert.equal((await b.next((m) => m.t === 'ack' && m.n === bad)).ok, false);
     a.send({ t: 'start' });
     const initial = await Promise.all([a.next((m) => m.t === 'state'), b.next((m) => m.t === 'state')]);
+    await list.next((m) => m.t === 'directory' && m.rooms.some((r) => r.code === code && r.live && !r.joinable));
     assert.equal(initial[0].game, initial[1].game);
     assert.equal(initial[0].st.p[1][11], null);
     assert.ok(initial[0].st.p[1][3].startsWith('!'));
@@ -112,6 +113,7 @@ test('WebSocket room, hand order, idempotent draw, resume, and maintenance', asy
     assert.equal(current.st.aw[1], 0);
     resumed.send({ t: 'leave' }, current, joined.next);
     await a.next((m) => m.t === 'state' && m.phase === 'over');
+    await list.next((m) => m.t === 'directory' && m.rooms.some((r) => r.code === code && !r.live && !r.joinable));
     const restart = a.send({ t: 'start' });
     assert.equal((await a.next((m) => m.t === 'ack' && m.n === restart)).error, 'maintenance');
     assert.equal(completed.length, 1);
