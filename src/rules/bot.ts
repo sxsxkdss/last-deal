@@ -4,6 +4,7 @@ import { comboCands, comboOf, comboWorth } from './poker.ts';
 
 export const BOT_PROFILES = ['standard', 'cautious', 'aggressive', 'combos', 'debt'] as const;
 export type BotProfile = (typeof BOT_PROFILES)[number];
+export const DEFAULT_BOT_PROFILE: BotProfile = 'standard';
 const weights = {
   standard: { attack: 0, risk: 0, combination: 0, debt: 0 },
   cautious: { attack: -0.55, risk: 8, combination: 0, debt: 0.04 },
@@ -114,7 +115,7 @@ export const Bot = {
       }
     return best;
   },
-  choose(g, pi, profile: BotProfile = 'standard') {
+  choose(g, pi, profile: BotProfile = DEFAULT_BOT_PROFILE) {
     const strategy = weights[profile];
     const p = g.players[pi];
     const opts = g.playable(pi);

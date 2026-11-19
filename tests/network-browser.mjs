@@ -53,6 +53,20 @@ try {
   assert.equal(await b.locator('#joinCode').inputValue(), code);
   await b.locator('#btnJoinOnline').click();
   await b.locator('#lobby').waitFor({ state: 'visible' });
+  for (const profile of ['cautious', 'debt']) {
+    await a.locator(`#lbBotProfile label:has([value="${profile}"])`).click();
+    await a.locator('#btnAddBot').click();
+  }
+  for (const page of [a, b]) {
+    const strategies = page.locator('#lbSeats .seat-strategy');
+    await strategies.nth(1).waitFor();
+    assert.match(await strategies.nth(0).textContent(), /Осторожная.*картами добора/);
+    assert.match(await strategies.nth(1).textContent(), /Контроль долга.*принесут больше долга/);
+  }
+  for (let count = 3; count >= 2; count--) {
+    await a.locator('#btnRmBot').click();
+    await b.waitForFunction((expected) => document.querySelectorAll('#lbSeats .seatrow').length === expected, count);
+  }
   await a.locator('[data-mode="one"]').click();
   await a.locator('#btnRoomStart').click();
   await Promise.all([a, b].map((page) => page.locator('#game').waitFor({ state: 'visible' })));
@@ -73,7 +87,7 @@ try {
     .click({ position: { x: 8, y: 18 } });
   await received;
   assert.deepEqual(errors, []);
-  console.log('Online browser: main button, room code, public list, invitation, play and resume.');
+  console.log('Online browser: room code, public list, invitation, bot profiles, play and resume.');
 } finally {
   await browser?.close();
   if (vite) await new Promise((resolve) => vite.httpServer.close(resolve));

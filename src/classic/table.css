@@ -117,7 +117,6 @@ body.lite #grain { display: none; }
 .room-visibility { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; cursor: pointer; }
 .room-choice { border: 0; min-width: 0; }
 .room-choice legend { margin-bottom: 5px; }
-.room-choice:last-child { grid-column: 1 / -1; }
 .room-choice .seg { gap: 2px; padding: 2px; border-width: 1px; }
 .room-choice label { position: relative; }
 .room-choice label span { display: block; padding-inline: 9px; cursor: pointer; }
@@ -125,7 +124,8 @@ body.lite #grain { display: none; }
 .room-choice input:disabled + span { opacity: .5; text-decoration: line-through; cursor: default; }
 .room-choice label:hover input:enabled:not(:checked) + span { color: var(--stamp); }
 .room-choice #lbCapacity span { text-align: center; min-width: 32px; }
-.room-config + .actions-row { margin-top: 12px; }
+.bot-config { display: grid; gap: 10px; margin-top: 14px; }
+.bot-profile-description { margin-top: 5px; }
 .lobby-ready { border-top: 2px solid var(--ink); padding-top: 10px; margin: 12px 0 20px; }
 .lobby-ready .msg { margin: 0; }
 .lobby-ready .btn { margin-top: 8px; }
@@ -138,6 +138,12 @@ body.lite #grain { display: none; }
 .seatrow .who { display: flex; gap: 8px; align-items: center; font: 600 14px var(--f-type); }
 .seatrow.me .who { text-decoration: underline; text-underline-offset: 4px; }
 .seatrow .bot { color: var(--stamp); }
+#lbSeats .seatrow { align-items: baseline; gap: 10px; }
+#lbSeats .seatrow > .label { flex-shrink: 0; }
+.seat-player { min-width: 0; }
+.seat-name { overflow-wrap: anywhere; }
+.seat-strategy { margin: 3px 0 0 32px; font: 400 12px/17px var(--f-type); color: var(--ink-soft); }
+.seat-strategy strong { font-weight: 600; color: var(--stamp); }
 .ini { display: inline-grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: var(--ui-r); font: 500 11px var(--f-type); background: var(--ink); color: var(--paper); }
 .rv { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-top: 1px dashed rgba(29, 23, 18, .3); font-family: var(--f-type); }
 .rv .mono { color: var(--ink-soft); }

@@ -18,6 +18,8 @@ The classic table connects to the same-origin `/ws` endpoint. Nginx terminates T
 
 For bound seats, `n` is a monotonically increasing safe integer. A duplicate in the last 64 requests receives its prior `ack` without executing again. An older unknown number is rejected. `ack` contains `n`, `ok`, the current room `revision` and, on failure, an error code such as `stale`, `rejected`, `forbidden` or `maintenance`. Stale game commands receive a fresh snapshot.
 
+`lobby.players` rows use `[name, online, host, self, bot, profile]`. The sixth value is the bot's strategy ID, or `null` for human players. Older servers omit it.
+
 `state` includes the room `revision`, the domain `tableRevision`, round ID `game`, `phase`, `serverTime`, and an authoritative `deadline` when applicable. Send the last `tableRevision` as request `revision`. Play commands require the same table revision and round. Independent shop and draft actions can use an older revision within the same round and phase after domain validation. Hand gestures do not advance the table revision. The compatibility projection `st` powers the classic renderer. Full snapshots are used for resync and reconnect.
 
 Production limits include 32 KiB per inbound packet, 40 messages per second per connection, bounded acknowledgement caches, and disconnecting a slow consumer with excessive queued data. Identifiers and tokens use server-side cryptographic randomness. Log and event fields intended for a single seat are filtered from the shared projection.

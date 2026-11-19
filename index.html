@@ -65,9 +65,15 @@
       <div class="room-config hidden" id="lbOnlineConfig">
         <label class="room-visibility"><input type="checkbox" id="lbPublic"> <span id="lbPublicLabel"></span></label>
         <fieldset class="room-choice"><legend class="label" id="lbCapacityLabel"></legend><div class="seg" id="lbCapacity"></div></fieldset>
-        <fieldset class="room-choice"><legend class="label" id="lbBotProfileLabel"></legend><div class="seg" id="lbBotProfile"></div></fieldset>
       </div>
-      <div class="section actions-row"><button class="btn" id="btnAddBot" data-i18n="addBot"></button><button class="btn" id="btnRmBot" data-i18n="rmBot"></button></div>
+      <div class="bot-config">
+        <fieldset class="room-choice" aria-describedby="lbBotProfileDescription">
+          <legend class="label" id="lbBotProfileLabel"></legend>
+          <div class="seg" id="lbBotProfile"></div>
+          <p id="lbBotProfileDescription" class="bot-profile-description"></p>
+        </fieldset>
+        <div class="actions-row"><button class="btn" id="btnAddBot" data-i18n="addBot"></button><button class="btn" id="btnRmBot" data-i18n="rmBot"></button></div>
+      </div>
       <div class="section"><h2 data-i18n="matchMode"></h2>
         <div class="modes" id="lbMode"></div>
         <div class="limitrow" id="lbLimitRow"><span class="label" data-i18n="debtLimit"></span><div class="seg" id="lbLimit"></div></div></div>

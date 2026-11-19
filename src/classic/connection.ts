@@ -3,6 +3,8 @@ import { matchFor } from '../match/match.ts';
 import { botNick } from '../match/names.ts';
 import { Table, type Action, type Settings } from '../match/table.ts';
 import { DEBT_LIMITS, PRESETS } from '../rules/cards.ts';
+import { DEFAULT_BOT_PROFILE, type BotProfile } from '../rules/bot.ts';
+import type { LobbyPlayer } from '../shared/protocol.ts';
 import { serialize } from './snapshot.ts';
 
 type WireAction =
@@ -15,7 +17,8 @@ type Message =
   | ({ t: 'create'; name: string } & SettingsMessage)
   | ({ t: 'settings' } & SettingsMessage)
   | { t: 'rename'; name: string }
-  | { t: 'start' | 'addbot' | 'rmbot' | 'tolobby' | 'leave' }
+  | { t: 'start' | 'rmbot' | 'tolobby' | 'leave' }
+  | { t: 'addbot'; profile?: BotProfile }
   | { t: 'act'; a: WireAction }
   | { t: 'draft'; ids: number[] }
   | { t: 'shop'; a: { k: string; id?: string; target?: number } }
@@ -44,7 +47,9 @@ export function localConnection(receive: (message: object) => void) {
     code: '',
     host: true,
     live: game !== undefined && game.phase !== 'over',
-    players: settings.members.map(({ name, bot }, i) => [name, 1, i === 0, i === 0, bot]),
+    players: settings.members.map(({ name, bot, profile }, i): LobbyPlayer => [
+      name, true, i === 0, i === 0, bot, bot ? (profile ?? DEFAULT_BOT_PROFILE) : null,
+    ]),
     rules: settings.rules,
     cards: settings.cards,
     mode: settings.mode,
@@ -124,7 +129,7 @@ export function localConnection(receive: (message: object) => void) {
         break;
       case 'addbot':
         if (settings.members.length < 6)
-          settings.members.push({ name: botNick(Math.random), bot: true });
+          settings.members.push({ name: botNick(Math.random), bot: true, profile: message.profile });
         break;
       case 'rmbot':
         if (settings.members.length > 1) settings.members.pop();

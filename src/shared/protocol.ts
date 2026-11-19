@@ -4,6 +4,14 @@ import { BOT_PROFILES, type BotProfile } from '../rules/bot.ts';
 
 export const PROTOCOL = 1;
 export type LobbySettings = Partial<Omit<Settings, 'members'>> & { capacity?: number; public?: boolean };
+export type LobbyPlayer = [
+  name: string,
+  online: boolean,
+  host: boolean,
+  self: boolean,
+  bot: boolean,
+  profile?: BotProfile | null,
+];
 type Command =
   | ({ t: 'create'; name: string } & LobbySettings)
   | ({ t: 'settings' } & LobbySettings)

@@ -4,7 +4,7 @@ import { playCue } from './cues.ts';
 import { localConnection } from './connection.ts';
 import { webConnection } from './websocket.ts';
 import { Game } from '../rules/game.ts';
-import { Bot } from '../rules/bot.ts';
+import { Bot, BOT_PROFILES, DEFAULT_BOT_PROFILE } from '../rules/bot.ts';
 import { ALPHA, EXTRA_CARDS, FACES, PRESETS, RULE_ALL, SIDE_COLORS, cardCode, other } from '../rules/cards.ts';
 import { LIGHT_DEALS, canDark, canLight, hasDeal } from '../rules/contracts.ts';
 import { COMBOS, COMBO_RANK, comboCands, comboOf, comboWorth, isJoker } from '../rules/poker.ts';
@@ -1668,10 +1668,27 @@ function updateMusicControls() {
     }
   }
 }
-const botProfileLabels = {
-  standard: ['Обычная', 'Standard'], cautious: ['Осторожная', 'Cautious'],
-  aggressive: ['Агрессивная', 'Aggressive'], combos: ['Комбинации', 'Combinations'],
-  debt: ['Контроль долга', 'Debt management'],
+const botProfileText = {
+  standard: {
+    name: ['Обычная', 'Standard'],
+    description: ['Чередует обычные ходы и атаки в зависимости от расклада.', 'Mixes regular plays and attacks according to the state of the table.'],
+  },
+  cautious: {
+    name: ['Осторожная', 'Cautious'],
+    description: ['Реже атакует картами добора и избегает рискованных эффектов.', 'Uses draw attacks less often and avoids risky effects.'],
+  },
+  aggressive: {
+    name: ['Агрессивная', 'Aggressive'],
+    description: ['Чаще заставляет соперников добирать карты и охотнее рискует.', 'Favors making opponents draw cards and takes more risks.'],
+  },
+  combos: {
+    name: ['Комбинации', 'Combinations'],
+    description: ['Охотнее разыгрывает покерные комбинации, когда они разрешены.', 'Favors playing poker combinations when the rules allow them.'],
+  },
+  debt: {
+    name: ['Контроль долга', 'Debt management'],
+    description: ['В матче на долг старается сбрасывать карты, которые принесут больше долга.', 'In debt matches, favors discarding cards that would leave more debt.'],
+  },
 };
 function roomChoices(id, values, initial) {
   return values.map(value => {
@@ -1686,7 +1703,12 @@ function roomChoices(id, values, initial) {
   });
 }
 const capacityChoices = roomChoices('lbCapacity', ['2', '3', '4', '5', '6'], '6');
-const profileChoices = roomChoices('lbBotProfile', Object.keys(botProfileLabels), 'standard');
+const profileChoices = roomChoices('lbBotProfile', BOT_PROFILES, DEFAULT_BOT_PROFILE);
+const selectedBotProfile = () => $('lbBotProfile').querySelector(':checked').value;
+function updateBotProfileDescription() {
+  $('lbBotProfileDescription').textContent = networkText(...botProfileText[selectedBotProfile()].description);
+}
+$('lbBotProfile').onchange = updateBotProfileDescription;
 function applyStatic() {
   document.documentElement.lang = LANG;
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
@@ -1702,7 +1724,8 @@ function applyStatic() {
   $('lbPublicLabel').textContent = networkText('Публичная комната', 'Public room');
   $('lbCapacityLabel').textContent = networkText('Мест за столом', 'Seats');
   $('lbBotProfileLabel').textContent = networkText('Стратегия нового бота', 'New bot strategy');
-  for (const { input, caption } of profileChoices) caption.textContent = networkText(...botProfileLabels[input.value]);
+  for (const { input, caption } of profileChoices) caption.textContent = networkText(...botProfileText[input.value].name);
+  updateBotProfileDescription();
   drawDirectory();
 }
 function setFx(m) { S.fx = m; saveSettings(); document.body.classList.toggle('lite', m !== 'full'); }
@@ -1829,13 +1852,23 @@ $('lbName').addEventListener('input', () => {
   }, 350);
 });
 $('btnRoomStart').onclick = () => conn.send({ t: 'start' });
-$('btnAddBot').onclick = () => conn.send({ t: 'addbot', profile: $('lbBotProfile').querySelector(':checked').value });
+$('btnAddBot').onclick = () => conn.send({ t: 'addbot', profile: selectedBotProfile() });
 $('btnRmBot').onclick = () => conn.send({ t: 'rmbot' });
 function syncCapacity(l) {
   for (const { input } of capacityChoices) {
     input.checked = Number(input.value) === (l.capacity || 6);
     input.disabled = Number(input.value) < l.players.length;
   }
+}
+function lobbySeatHTML([name, online, host, self, bot, profile]) {
+  const strategy = bot && Object.hasOwn(botProfileText, profile) ? botProfileText[profile] : null;
+  return `<div class="seatrow ${self ? 'me' : ''}">
+    <div class="seat-player">
+      <span class="who"><span class="ini">${bot ? 'AI' : initials(name)}</span><span class="seat-name">${esc(name)}</span></span>
+      ${strategy ? `<div class="seat-strategy"><strong>${esc(networkText(...strategy.name))}</strong> · ${esc(networkText(...strategy.description))}</div>` : ''}
+    </div>
+    <span class="label ${bot ? 'bot' : ''}">${bot ? t('botTag') : host ? t('host') : t('player')}${online ? '' : ' · ' + t('away')}</span>
+  </div>`;
 }
 function renderLobby(l) {
   $('roomInvite').classList.toggle('hidden', !l.code);
@@ -1850,7 +1883,7 @@ function renderLobby(l) {
   $('lbHost').classList.toggle('hidden', !l.host);
   $('lbGuest').classList.toggle('hidden', !!l.host);
   if (document.activeElement !== $('lbName')) $('lbName').value = S.name;
-  $('lbSeats').innerHTML = l.players.map(([name, on, host, me, bot]) => `<div class="seatrow ${me ? 'me' : ''}"><span class="who"><span class="ini">${bot ? 'AI' : initials(name)}</span>${esc(name)}</span><span class="label ${bot ? 'bot' : ''}">${bot ? t('botTag') : host ? t('host') : t('player')}${on ? '' : ' · ' + t('away')}</span></div>`).join('');
+  setHTML($('lbSeats'), l.players.map(lobbySeatHTML).join(''));
   $('btnAddBot').disabled = l.players.length >= (l.capacity || 6);
   $('btnRmBot').disabled = !l.players.some(p => p[4]);
   if (l.host) {
