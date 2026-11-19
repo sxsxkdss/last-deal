@@ -1,33 +1,48 @@
-# Автообновление Last Deal на VPS
+# Last Deal deployment notes
 
-`update.sh` забирает ветку `main` из `sxsxkdss/last-deal`, выполняет `npm ci` и собирает Vite в отдельном каталоге. Только успешная сборка переключает `/var/lib/last-deal/current` на новый коммит. Предыдущие релизы хранятся в `/var/lib/last-deal/releases`. Таймер systemd проверяет обновления каждые три минуты.
+[English VPS tutorial](../README.md#deploy-to-your-vps) · [Установка на VPS](../README.md#установка-на-свой-vps)
 
-## Перед установкой
+## TLS certificate / Сертификат TLS
 
-- Проверьте `ss -ltnp 'sport = :8443'` на VPS. Если порт уже занят Xray, 3X-UI или другим сервисом, сначала выберите с владельцем схему размещения. Второй процесс на том же IP и порту запустить нельзя.
-- DNS домена должен указывать на VPS. Для HTTPS нужен сертификат этого домена. Сверьте пути в `nginx.conf.example` с реальными путями сертификата и ключа.
-- Обновлятору нужны Git, Bash, tar, flock и Node.js 22.18+ с npm. Для обычной установки systemd использует Node.js из `/usr/local/bin` или `/usr/bin`.
-- Опубликуйте целевую ревизию в Git, прежде чем включать обновления. Для другой ветки задайте `LAST_DEAL_BRANCH` в `/etc/default/last-deal`.
+Use one method if you do not already have a certificate for the domain. Replace `game.example.com` with your domain.
 
-## Установка на Linux с systemd
+Выбери один способ, если у домена ещё нет сертификата. Подставь свой домен вместо `game.example.com`.
 
-Из каталога с этой версией репозитория выполните с административными правами
+**Standalone** — TCP 80 must be free and reachable from the internet. / TCP 80 должен быть свободен и доступен из интернета.
 
 ```sh
-id last-deal >/dev/null 2>&1 || useradd --system --user-group --home-dir /var/lib/last-deal --shell /usr/sbin/nologin last-deal
-install -D -m 0755 deploy/update.sh /usr/local/libexec/last-deal-update
-install -m 0644 deploy/last-deal-update.service deploy/last-deal-update.timer /etc/systemd/system/
-systemctl daemon-reload
-systemctl start last-deal-update.service
-journalctl -u last-deal-update.service -n 40 --no-pager
-readlink /var/lib/last-deal/current
+apt-get install -y certbot
+certbot certonly --standalone --cert-name game.example.com -d game.example.com
 ```
 
-После успешной сборки добавьте блок из `nginx.conf.example` в активную конфигурацию Nginx. Подставьте домен и сертификат. Проверьте конфигурацию через `nginx -t`, затем примените её через `systemctl reload nginx`. Откройте `https://ВАШ-ДОМЕН:8443/` и проверьте загрузку файлов из `assets/` и локальную раздачу. При необходимости разрешите входящий TCP 8443 в действующих правилах хостинга и сервера.
+**DNS** — use this if TCP 80 is busy or blocked. Follow the TXT-record prompt. / Если TCP 80 занят или закрыт, создай TXT-запись по подсказке Certbot.
 
 ```sh
-systemctl enable --now last-deal-update.timer
-systemctl list-timers last-deal-update.timer
+apt-get install -y certbot
+certbot certonly --manual --preferred-challenges dns \
+  --cert-name game.example.com -d game.example.com
 ```
 
-Чтобы откатиться, остановите таймер, дождитесь завершения текущего обновления и атомарно замените ссылку `current` на проверенный каталог из `releases/`. Перед повторным включением таймера укажите исправленную ветку или исправьте её вершину.
+Standalone renewal still needs TCP 80. Manual DNS renewal requires a new TXT record. A provider-specific Certbot DNS plugin can automate it. Configure a deploy hook to reload Nginx when the certificate renews. [Certbot documentation](https://eff-certbot.readthedocs.io/en/stable/using.html#renewing-certificates)
+
+Для продления через standalone по-прежнему нужен TCP 80. При ручной проверке DNS потребуется новая TXT-запись. Продление можно автоматизировать DNS-плагином провайдера и настроить перезагрузку Nginx после обновления сертификата. [Документация Certbot](https://eff-certbot.readthedocs.io/en/stable/using.html#renewing-certificates)
+
+## Fresh Nginx install / Первая установка Nginx
+
+Run this only if Nginx is not installed. The temporary mask prevents the package from starting the default HTTP site on port 80 during installation.
+
+Выполняй этот блок только при первой установке Nginx. Временная маска не даёт пакету запустить стандартный HTTP-сайт на порту 80 во время установки.
+
+```sh
+(
+  set -eu
+  systemctl mask --runtime nginx.service
+  trap 'systemctl unmask --runtime nginx.service' EXIT
+  apt-get install -y nginx
+  if [ -L /etc/nginx/sites-enabled/default ]; then
+    unlink /etc/nginx/sites-enabled/default
+  fi
+)
+```
+
+Continue with step 4 in the main tutorial. / Продолжи с шага 4 основной инструкции.

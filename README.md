@@ -1,112 +1,167 @@
 # Last Deal
 
-Локальная браузерная карточная игра на TypeScript и Vite для 2–6 участников. За классическим столом играет один человек и до пяти ботов. Доступны одна раздача и матч на долг с передачей карт, сделками, лавками и коллекторами.
+[English](#english) · [Русский](#русский) · [MIT License](LICENSE)
 
-## Запуск
+## English
 
-Нужен Node.js 22.18 или новее. Из корня репозитория выполните
+Last Deal is a browser card game for 2–6 seats. At the classic table, one person plays against up to five bots. Cards have day and night faces, and switching phases can turn a safe hand into a liability. Play a single round or try a debt match with contracts, shops, and collectors. The game runs in the browser, and hosting it only requires a static web server.
+
+### How to play
+
+1. Select **Open table**, add at least one bot, choose a mode and a rules preset, then select **Deal**.
+2. Everyone starts with seven cards. On your turn, match the top discard by colour or symbol, or play a legal wild card. Click a card or drag it onto the discard pile.
+3. If you cannot play, click the deck to draw. Play an eligible card or pass when the table allows it. With **Draw till colour**, keep drawing until you find the required colour or a wild.
+4. **Shift** flips the cards between day and night. **Eclipse** switches the phase for one turn. With stacking enabled, answer a draw attack with an equal or stronger draw card. When group plays are enabled, right-click or Shift-click to select cards for a multi-discard or poker combination.
+5. An empty hand wins the round. If **Last Call** is enabled and triggers, the smallest hand wins. In a **debt match**, pass two cards to a neighbour before each round, then settle debt and spend chips in the shops between rounds. Collectors can eliminate players who exceed their debt limit. The last remaining player wins the match.
+
+The in-game **Rules** panel describes the active options. See the [detailed rule reference in Russian](RULES.md) for card effects, contracts, items, and debt scoring.
+
+### Run locally
+
+Use Node.js 22.18 or newer with npm.
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Откройте адрес, напечатанный Vite. Нажмите «Открыть стол», добавьте ботов кнопкой в лобби, выберите режим и пресет и нажмите «Сдать». Колода выполняет добор и после добора позволяет передать ход. Карту можно сыграть кликом или перетащить в сброс. Правый клик или Shift с кликом отмечают карты для совместного розыгрыша.
+Open the URL printed by Vite. Use `npm run build` for a production build in `dist/` or `npm test` to run the rule tests.
 
-Основной экран использует оригинальные разметку, стили, эффекты и управление из [last-deal-legacy на коммите 98d0478](https://github.com/sxsxkdss/last-deal-legacy/tree/98d047896f271e72aa3152520ca03d3e39de9df6). Лобби запускает локальную партию, а адаптер передаёт действия в TypeScript-ядро и возвращает снимок для текущего игрока. Сетевые приглашения убраны из лобби локальной игры.
+### Deploy to your VPS
 
-По адресу `/development.html` доступен прежний отладочный стол с передачей экрана между людьми и экспериментальной 3D-сценой.
-
-В матче передайте две карты перед каждой раздачей. В лавке выберите цель до покупки пакости. Ручные предметы доступны во время розыгрыша даже в чужой ход. Собственные предложения гостей, видимая сторона колоды и рубашки соперников доступны через представление своего места.
-
-## Музыка
-
-Классический стол показывает текущий трек в лобби и рядом с журналом. На телефоне плеер доступен через «Меню». Кнопки позволяют включить или поставить музыку на паузу и перейти к предыдущему или следующему треку. Громкость музыки регулируется отдельно в настройках. Воспроизведение начинается после первого взаимодействия со страницей, если звук и музыка включены.
-
-Положите MP3, OGG, WAV, M4A или FLAC в `src/classic/tracks/`. Файлы попадают в плейлист при сборке и идут по алфавиту с естественной сортировкой чисел. По умолчанию плеер показывает имя файла без расширения. Для отдельного названия или исполнителя добавьте запись в `src/classic/tracks/playlist.json` по точному имени файла.
-
-```json
-{
-  "03-table-night.mp3": { "title": "Ночной стол", "artist": "Имя автора" }
-}
-```
-
-В репозитории пока нет музыкальных треков. Добавляйте файлы с известным названием и указывайте его в плейлисте, если оно отличается от имени файла.
-
-## Проверка и сборка
+These steps assume Ubuntu or Debian with systemd, root access, and a domain pointing to the VPS. Replace `game.example.com` with your domain. Check which service owns ports 80 and 443 before configuring HTTPS.
 
 ```sh
-npm test
-npm run build
-npm run preview
+ssh root@game.example.com
+ss -ltnp '( sport = :80 or sport = :443 )'
+apt-get update
+apt-get install -y git ca-certificates util-linux
+env PATH=/usr/local/bin:/usr/bin:/bin node --version
+env PATH=/usr/local/bin:/usr/bin:/bin npm --version
 ```
 
-Сборка проверяет TypeScript и создаёт статический сайт в `dist/`. Для воспроизводимой проверки production-интерфейса установите тестовый Chromium и запустите
+1. Install [Node.js 22.18 or newer](https://nodejs.org/en/download) with npm if Node.js is older or either version check fails. Install it system-wide so the updater can find it in `/usr/local/bin` or `/usr/bin`.
+2. Install the updater and build the first release.
+
+   ```sh
+   cd /opt
+   git clone --depth 1 https://github.com/sxsxkdss/last-deal.git last-deal-setup
+   cd last-deal-setup
+   id last-deal >/dev/null 2>&1 || useradd --system --user-group \
+     --home-dir /var/lib/last-deal --shell /usr/sbin/nologin last-deal
+   install -D -m 0755 deploy/update.sh /usr/local/libexec/last-deal-update
+   install -m 0644 deploy/last-deal-update.service deploy/last-deal-update.timer /etc/systemd/system/
+   systemctl daemon-reload
+   systemctl start last-deal-update.service
+   readlink /var/lib/last-deal/current
+   ```
+
+3. Use an existing TLS certificate for your domain or [obtain one with Certbot](deploy/README.md#tls-certificate--сертификат-tls). For a new certificate, standalone validation needs public TCP 80 and an available listener on that port. Use DNS validation if port 80 is occupied by Xray or 3X-UI. Keep certificate renewal configured.
+4. Configure Nginx. For a fresh Nginx install, use the [installation commands](deploy/README.md#fresh-nginx-install--первая-установка-nginx). If Xray or 3X-UI owns port 443, choose a free port such as 8443 in the template and append it to the site URL. An existing Nginx can serve another hostname on 443. Check for an existing configuration for your domain before adding one.
+
+   ```sh
+   # From /opt/last-deal-setup, after installing Nginx and obtaining the certificate.
+   domain=game.example.com
+   sed "s/game\.example\.com/$domain/g" deploy/nginx.conf.example \
+     > /etc/nginx/conf.d/last-deal.conf
+   nginx -t && systemctl enable --now nginx && systemctl reload nginx
+   ```
+
+   If the certificate files are elsewhere, edit both paths in `last-deal.conf` before reloading. Enable the chosen TCP port in your VPS firewall. If the domain has an AAAA record pointing to this VPS, also add the corresponding IPv6 `listen` directive, for example `listen [::]:443 ssl;`.
+
+5. Open `https://game.example.com/` and start a round. Enable automatic updates once the site works.
+
+   ```sh
+   systemctl enable --now last-deal-update.timer
+   systemctl list-timers last-deal-update.timer
+   ```
+
+The timer checks `main` about every three minutes. The previous release stays online if a new build fails. Run `systemctl start last-deal-update.service` to check immediately, or `journalctl -u last-deal-update.service -n 40 --no-pager` to inspect the build log.
+
+### Music and license
+
+Put MP3, OGG, WAV, M4A, or FLAC files in [`src/classic/tracks/`](src/classic/tracks/). The player uses the filename by default. To supply a display title and artist, add an entry to [`playlist.json`](src/classic/tracks/playlist.json), such as `"night-table.mp3": { "title": "Night Table", "artist": "Artist name" }`. Rebuild after adding tracks.
+
+Project code and documentation are released under the [MIT License](LICENSE). Third-party dependencies and any added music retain their own licenses. The classic table builds on the [legacy Last Deal project](https://github.com/sxsxkdss/last-deal-legacy).
+
+## Русский
+
+Last Deal — браузерная карточная игра на 2–6 мест. За классическим столом один человек играет против одного–пяти ботов. У карт есть дневная и ночная стороны, и после смены фазы хорошая рука может стать обузой. Можно сыграть одну раздачу или матч на долг со сделками, лавками и коллекторами. Игра работает в браузере, для публикации достаточно статического веб-сервера.
+
+### Как играть
+
+1. Нажми **Открыть стол**, добавь хотя бы одного бота, выбери режим и пресет правил, затем нажми **Сдать**.
+2. Все начинают с семью картами. В свой ход положи карту того же цвета или символа, что и верхняя карта сброса, либо допустимого джокера. Карту можно сыграть кликом или перетащить в сброс.
+3. Если ходить нечем, нажми на колоду. Сыграй подходящую карту или передай ход, когда стол это разрешит. При правиле **Тянуть до цвета** добирай, пока не найдёшь нужный цвет или джокера.
+4. **Смена** переворачивает карты и переключает день и ночь. **Затмение** меняет фазу на один ход. При включённых стопках на атаку добором можно ответить равной или более сильной картой добора. Если разрешён групповой розыгрыш, отмечай карты правым кликом или кликом с Shift для мультисброса или покерной комбинации.
+5. В раздаче выигрывает тот, кто первым опустошил руку. Если включён и сработал **Последний звонок**, побеждает игрок с наименьшим числом карт. В **матче на долг** перед каждой раздачей передай две карты соседу. Между раздачами начисляется долг и открываются лавки, где можно потратить фишки. Коллекторы могут вывести из матча игроков, превысивших лимит долга. Побеждает последний оставшийся игрок.
+
+В меню **Правила** описаны настройки стола. Эффекты карт, сделки, предметы и расчёт долга собраны в [подробном справочнике](RULES.md).
+
+### Локальный запуск
+
+Нужен Node.js 22.18 или новее с npm.
 
 ```sh
-npx playwright install chromium --only-shell
-npm run test:browser
+npm ci
+npm run dev
 ```
 
-Браузерный тест поднимает временный HTTP-сервер на loopback, использует чистый профиль, фиксированные начальные значения генератора и виртуальные часы. Можно задать `CHROMIUM_PATH` для уже установленного исполняемого файла. Тест доводит раздачи со Сменой и Затмением до победы, проверяет добор кликом по сцене и осмотр лампы. В HTML-режиме он также завершает раздачу, передаёт карты в матче, покупает в обеих лавках и активирует предмет в следующей раздаче.
+Открой адрес, который покажет Vite. Команда `npm run build` собирает сайт в `dist/`, а `npm test` запускает тесты правил.
 
-## Устройство
+### Установка на свой VPS
 
-| Модуль | Ответственность |
-|---|---|
-| `src/rules/cards.ts`, `poker.ts`, `selection.ts` | Каталог обеих сторон, веса, цены карт, пресеты, оценка комбинаций и выбор ведущей карты |
-| `src/rules/game.ts`, `play.ts`, `draw.ts`, `slots.ts` | Авторитетное состояние раздачи, порядок розыгрыша эффектов, реакции, добор и события слотов |
-| `src/rules/contracts.ts`, `visitors.ts`, `abilities.ts` | Учёт атак и долга, приглашение гостя, подписание, Падение, способности |
-| `src/rules/items.ts`, `horsemen.ts`, `bot.ts` | Предметы и автоматические реакции, всадники, решения бота |
-| `src/match/match.ts`, `state.ts`, `bots.ts` | Передачи, расчёт, магазины, коллекторы, перенос состояния, очередность автоматических действий |
-| `src/match/table.ts`, `clock.ts` | Валидация действий, часы, дедлайны и персональная проекция |
-| `src/match/local.ts` | Интерфейс для HTML и будущей Three.js-сцены |
-| `src/ui/scene/` | Камера места, освещение, осмотр лампы и 3D-представление колоды и сброса |
-| `src/classic/` | Оригинальный интерфейс и локальный адаптер TypeScript-ядра |
-| `src/ui/` | Настройки стола, ввод и отрисовка, русские названия и журнал |
-
-### Подключение отображения
-
-```ts
-import {localGame} from './src/match/local.ts'
-import {seeded} from './src/match/clock.ts'
-import {PRESETS} from './src/rules/cards.ts'
-
-const game = localGame({
-  ...PRESETS.den, mode: 'debt', limit: 500,
-  members: [{name:'Игрок', bot:false}, {name:'Соперник', bot:true}],
-}, seeded(42))
-
-const unsubscribe = game.subscribe(0, (view, events) => {
-  // Нарисуйте видимые карты из view. Анимации получают новые события этой раздачи.
-  console.log(view.phase, events.map(event => event.type))
-})
-const cards = game.view(0).hand.filter(card => !card.unique).slice(0,2)
-game.dispatch(0, {k:'draft', cards:cards.map(card => card.id)})
-game.advance(30000)
-unsubscribe()
-```
-
-На вход ядру передаются функция случайности и истекшие миллисекунды. Идентификаторы карт принадлежат раздаче. Для воспроизведения нужны настройки, seed и та же последовательность действий и интервалов. Снимки отделены от внутреннего состояния копированием. Внутри раздачи события нумеруются, новый `gameId` начинает отдельную последовательность. Проекция возвращает недавние события, поэтому для показа каждого изменения подписывайтесь на обновления. Смена фазы матча видна в `view.phase`, расчёт — в `view.match.last`.
-
-### Добавление правил
-
-- **Карта с готовым эффектом.** Добавьте запись в `PRINTED_FACES` в `cards.ts`, например `{side:'L', color:'r', effect:'d2', title:'Двойной взнос', weight:1}`. Каталог подставит это лицо при генерации дневной стороны, отобразит название и применит обычные правила +2. Веса базовых лиц задаёт `SIDE_WEIGHTS`. Для новой карты Дома добавьте переключатель и подписи стола.
-- **Новый эффект.** Добавьте символ и его вес в каталог, затем обработайте его в соответствующей точке `play.ts`. Для реакции на уже созданную стопку также проверьте `canPlay`, `takeStack` и `applyShield`. Если карта завершает руку, победа определяется на прежнем месте до большинства эффектов. Изменения доступных действий должны попасть в персональное представление.
-- **Сделка или предмет.** Добавьте идентификатор в пул соответствующего модуля и задайте цену или условия. Разовый эффект сделки обрабатывает `dealEffect`, ручной предмет — `useItem`, действие на начале хода — `beginTurn`. Для переносимого поля проверьте пару `settle` / `newDeal`.
-- **Событие.** В месте определения результата вызовите `game.ev('имя', {pi, ...})`. Проверьте видимость в `Table.view`. Для нового события слотов добавьте исход в пул `rollChaos`, измените состояние и выдайте событие после определения результата. Интерфейс реагирует на событие из снимка или подписки.
-- **Тест.** Для старого поведения добавьте сценарий в `tests/scenarios.mjs` и сравните с эталоном. Для нового правила задайте явное ожидаемое состояние. Добавьте строку в [чек-лист правил](RULES.md).
-
-## Эталон и сверка
-
-Исходные файлы взяты из [last-deal-legacy на коммите 98d0478](https://github.com/sxsxkdss/last-deal-legacy/tree/98d047896f271e72aa3152520ca03d3e39de9df6). Каталог карт, ставки и очередность эффектов взяты из `engine.js`, жизненный цикл матча и таймеры — из `server.js`, выбор групп, видимость и ограничивающие действия — из `src/client/`. Разделы 3–12 приложенного описания использованы при составлении проверок и для восстановления жетонов.
-
-Для обычного запуска тестов сеть и старый репозиторий не нужны. Файлы `legacy-results.json` и `legacy-server.json` содержат результаты исполнения зафиксированного кода. Чтобы переснять их, выполните из корня проекта
+Нужны Ubuntu или Debian с systemd, доступ под root и домен, указывающий на VPS. Замени `game.example.com` на свой домен. Перед настройкой HTTPS проверь, какие сервисы слушают порты 80 и 443.
 
 ```sh
-node tests/record-legacy.mjs ../last-deal-legacy/engine.js
-node tests/record-server.mjs ../last-deal-legacy/engine.js ../last-deal-legacy/server.js
-npm test
+ssh root@game.example.com
+ss -ltnp '( sport = :80 or sport = :443 )'
+apt-get update
+apt-get install -y git ca-certificates util-linux
+env PATH=/usr/local/bin:/usr/bin:/bin node --version
+env PATH=/usr/local/bin:/usr/bin:/bin npm --version
 ```
 
-Оба скрипта проверяют SHA-256 входных исходников. Запись эталона серверных правил не запускает HTTP или WebSocket. В [чек-листе](RULES.md) приведены источники, способы проверки, отличия от README и описания, а также принятые решения по жетонам.
+1. Если версия Node.js ниже или одна из команд не работает, установи [Node.js 22.18 или новее](https://nodejs.org/en/download) с npm. Для службы нужна системная установка в `/usr/local/bin` или `/usr/bin`.
+2. Установи обновлятор и собери первый релиз.
+
+   ```sh
+   cd /opt
+   git clone --depth 1 https://github.com/sxsxkdss/last-deal.git last-deal-setup
+   cd last-deal-setup
+   id last-deal >/dev/null 2>&1 || useradd --system --user-group \
+     --home-dir /var/lib/last-deal --shell /usr/sbin/nologin last-deal
+   install -D -m 0755 deploy/update.sh /usr/local/libexec/last-deal-update
+   install -m 0644 deploy/last-deal-update.service deploy/last-deal-update.timer /etc/systemd/system/
+   systemctl daemon-reload
+   systemctl start last-deal-update.service
+   readlink /var/lib/last-deal/current
+   ```
+
+3. Используй действующий TLS-сертификат домена или [выпусти его с помощью Certbot](deploy/README.md#tls-certificate--сертификат-tls). Для проверки в режиме standalone нужен свободный TCP 80, доступный из интернета. Если 80 занят Xray или 3X-UI, используй проверку через DNS. Настрой продление сертификата.
+4. Настрой Nginx. Для первой установки Nginx используй [отдельный блок команд](deploy/README.md#fresh-nginx-install--первая-установка-nginx). Если порт 443 занят Xray или 3X-UI, укажи в шаблоне свободный порт, например 8443, и добавь его к адресу сайта. Уже работающий Nginx может обслуживать ещё один домен на 443. Проверь, нет ли готового блока для твоего домена.
+
+   ```sh
+   # Из /opt/last-deal-setup после установки Nginx и получения сертификата.
+   domain=game.example.com
+   sed "s/game\.example\.com/$domain/g" deploy/nginx.conf.example \
+     > /etc/nginx/conf.d/last-deal.conf
+   nginx -t && systemctl enable --now nginx && systemctl reload nginx
+   ```
+
+   Если сертификат и ключ лежат в другой папке, исправь оба пути в `last-deal.conf` перед применением. Разреши выбранный TCP-порт в сетевом экране VPS. Если домен имеет запись AAAA для этого VPS, добавь соответствующую строку для IPv6, например `listen [::]:443 ssl;`.
+
+5. Открой `https://game.example.com/` и начни раздачу. Когда сайт заработает, включи автообновление.
+
+   ```sh
+   systemctl enable --now last-deal-update.timer
+   systemctl list-timers last-deal-update.timer
+   ```
+
+Таймер проверяет ветку `main` примерно раз в три минуты. Если новая сборка не удалась, VPS продолжит отдавать предыдущий релиз. Для немедленной проверки выполни `systemctl start last-deal-update.service`, для просмотра журнала — `journalctl -u last-deal-update.service -n 40 --no-pager`.
+
+### Музыка и лицензия
+
+Добавляй MP3, OGG, WAV, M4A или FLAC в [`src/classic/tracks/`](src/classic/tracks/). По умолчанию плеер показывает имя файла. Название и исполнителя можно задать в [`playlist.json`](src/classic/tracks/playlist.json), например `"night-table.mp3": { "title": "Ночной стол", "artist": "Имя исполнителя" }`. После добавления треков пересобери игру.
+
+Код и документация проекта распространяются по [лицензии MIT](LICENSE). Сторонние зависимости и добавленная музыка сохраняют свои лицензии. Классический стол основан на [предыдущей версии Last Deal](https://github.com/sxsxkdss/last-deal-legacy).
