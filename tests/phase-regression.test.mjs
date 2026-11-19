@@ -2,7 +2,8 @@ import { strict as assert } from 'node:assert';
 import test from 'node:test';
 import { seeded } from '../src/match/clock.ts';
 import { Table } from '../src/match/table.ts';
-import { LAST_CALL, MAX_STACK, PRESETS } from '../src/rules/cards.ts';
+import { ALPHA, LAST_CALL, MAX_STACK, PRESETS, WIRE_FACES } from '../src/rules/cards.ts';
+import { serialize } from '../src/classic/snapshot.ts';
 
 function table() {
   return new Table(
@@ -18,6 +19,21 @@ function table() {
     seeded(9),
   );
 }
+
+test('War keeps the wire faces and card IDs aligned after arming a curse', () => {
+  const { G: g } = table();
+  g.side = 'D';
+  g.horse = { k: 'war', v: 'arms', left: 10 };
+  const curse = { ...g.newCard(), D: { c: 'x', v: 'lead' } };
+  const attack = { ...g.newCard(), D: { c: 'p', v: 'd5' } };
+  g.players[0].hand = [curse, attack];
+  g.horseTurn(0);
+  assert.deepEqual(curse.D, { c: 'x', v: 'd5' });
+  const own = serialize(g, 0).p[0];
+  assert.equal(own[3].length, 4);
+  assert.deepEqual(own[11], [curse.id, attack.id]);
+  assert.deepEqual(WIRE_FACES.D[ALPHA.indexOf(own[3][1])], curse.D);
+});
 
 test('draw to a night color still resolves when Eclipse has returned the day', () => {
   const t = table();

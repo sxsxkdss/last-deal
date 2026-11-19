@@ -144,10 +144,13 @@ export function webConnection(receive: (message: any) => void) {
       return true;
     },
     order(cards: number[], selected: number[]) {
-      if (phase !== 'play') return;
-      const key = selectionKey(cards, selected);
+      if (phase !== 'play' || cards.length > 1200 || cards.some((id) => !Number.isSafeInteger(id) || id < 1)) return;
+      const hand = new Set(cards);
+      if (hand.size !== cards.length) return;
+      const visibleSelection = [...new Set(selected)].filter((id) => hand.has(id)).slice(0, 21);
+      const key = selectionKey(cards, visibleSelection);
       if (key === orderKey) return;
-      if (send({ t: 'order', cards, selected: selected.slice(0, 21) }, true)) orderKey = key;
+      if (send({ t: 'order', cards, selected: visibleSelection }, true)) orderKey = key;
     },
   };
 }

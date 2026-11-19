@@ -256,6 +256,7 @@ export interface PrintedFace {
   weight: number;
 }
 export const PRINTED_FACES: PrintedFace[] = [];
+export const ATTACK_VALS = { L: ['d1', 'd2', 'd4'], D: ['d5'] };
 export const FACES: Record<string, Face[]> = {},
   FACE_W: Record<string, number[]> = {};
 for (const s of ['L', 'D']) {
@@ -279,13 +280,18 @@ for (const definition of PRINTED_FACES) {
   FACES[definition.side].push({ c: definition.color, v: definition.effect, title: definition.title });
   FACE_W[definition.side].push(definition.weight);
 }
+// War can arm a curse card. These faces can be encoded but are not drawn.
+export const WIRE_FACES: Record<Side, Face[]> = {
+  L: [...FACES.L, ...ATTACK_VALS.L.map((v) => ({ c: 'x', v }))],
+  D: [...FACES.D, ...ATTACK_VALS.D.map((v) => ({ c: 'x', v }))],
+};
 // Safe printable chars ('#'..'~' minus backslash, then Latin-1 ¡..ÿ) index faces on the wire: 1 char per side.
 export const ALPHA =
   Array.from({ length: 92 }, (_, i) => String.fromCharCode(35 + i))
     .filter((ch) => ch !== '\\')
     .join('') + Array.from({ length: 95 }, (_, i) => String.fromCharCode(161 + i)).join('');
 export const faceIdx = (s, f) =>
-  FACES[s].findIndex((x) => x.c === f.c && x.v === f.v && x.title === f.title);
+  WIRE_FACES[s].findIndex((x) => x.c === f.c && x.v === f.v && x.title === f.title);
 export const cardCode = (card) => ALPHA[faceIdx('L', card.L)] + ALPHA[faceIdx('D', card.D)];
 export const other = (s) => (s === 'L' ? 'D' : 'L');
 export function faceName(f) {

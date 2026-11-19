@@ -5,14 +5,15 @@ import { localConnection } from './connection.ts';
 import { webConnection } from './websocket.ts';
 import { Game } from '../rules/game.ts';
 import { Bot, BOT_PROFILES, DEFAULT_BOT_PROFILE } from '../rules/bot.ts';
-import { ALPHA, EXTRA_CARDS, FACES, PRESETS, RULE_ALL, SIDE_COLORS, cardCode, other } from '../rules/cards.ts';
+import { ALPHA, EXTRA_CARDS, PRESETS, RULE_ALL, SIDE_COLORS, WIRE_FACES, cardCode, other } from '../rules/cards.ts';
 import { LIGHT_DEALS, canDark, canLight, hasDeal } from '../rules/contracts.ts';
 import { COMBOS, COMBO_RANK, comboCands, comboOf, comboWorth, isJoker } from '../rules/poker.ts';
 import { ITEMS, ITEM_AUTO, ITEM_PRICE, canUseItem } from '../rules/items.ts';
 import { HORSEMEN, horseOn, warded } from '../rules/horsemen.ts';
 let music;
 let CARD_ID = 1;
-const codeCard = code => ({ id: CARD_ID++, L: {...FACES.L[ALPHA.indexOf(code[0])]}, D: {...FACES.D[ALPHA.indexOf(code[1])]} });
+const wireFace = (side, code) => WIRE_FACES[side][ALPHA.indexOf(code)];
+const codeCard = code => ({ id: CARD_ID++, L: {...wireFace('L', code[0])}, D: {...wireFace('D', code[1])} });
 function deserialize(st) {
   const g = Object.assign(Object.create(Game.prototype), { horseOn, warded, canUseItem });
   g.gid = String(st.gid); g.rules = st.ru; g.side = st.sd === 'D' ? 'D' : 'L';
@@ -20,7 +21,7 @@ function deserialize(st) {
   g.players = st.p.map(a => {
     const hs = String(a[3] || '');
     let hand;
-    if (hs[0] === '!') hand = [...hs.slice(1)].map(ch => { const c = { id: CARD_ID++, hidden: true }; c[ob] = Object.assign({}, FACES[ob][ALPHA.indexOf(ch)] || { c: 'w', v: 'wild' }); return c; });
+    if (hs[0] === '!') hand = [...hs.slice(1)].map(ch => { const c = { id: CARD_ID++, hidden: true }; c[ob] = Object.assign({}, wireFace(ob, ch) || { c: 'w', v: 'wild' }); return c; });
     else { hand = []; for (let i = 0; i + 1 < hs.length; i += 2) hand.push(codeCard(hs.slice(i, i + 2))); }
     return { name: String(a[0]).slice(0, 20), av: String(a[1]).slice(0, 8), peer: String(a[2] || ''), hand,
       out: !!(a[4] & 1), elim: !!(a[4] & 2), human: !!(a[4] & 16), shield: !!(a[4] & 32), left: !!(a[4] & 64), oweN: a[5] || 0, owed: [], loan: a[6] || 0,
@@ -37,7 +38,7 @@ function deserialize(st) {
   g.horse = Array.isArray(st.hz) ? { k: st.hz[0], v: st.hz[1], left: st.hz[2], curses: String(st.hz[3] || '').split(',').filter(Boolean) } : null;
   g.offer = Array.isArray(st.of) ? { pi: st.of[0], kind: st.of[1], opts: st.of[2] || [] } : null;
   g.top = codeCard(st.t); g.top.wid = st.ti; if (Array.isArray(st.cx)) { g.chaosIn = st.cx[0]; g.inflate = st.cx[1]; g.lock = st.cx[2]; g.multNext = st.cx[3] || 1; g.maze = st.cx[4] || 0; g.potatoState = st.cx[5] || 0; g.turnNo = st.cx[6] || 0; g.crossLeft = st.cx[7] || 0; } g.debt = Array.isArray(st.db) ? { pi: st.db[0], n: st.db[1], until: st.db[2] || null, got: st.db[3], kind: st.db[4] } : null; g.pile = Array.isArray(st.pl) ? st.pl.map(String) : []; g.pileN = st.pn || 1;
-  g.next = { id: 0, hidden: true }; g.next[ob] = Object.assign({}, FACES[ob][ALPHA.indexOf(st.nb)] || { c: 'w', v: 'wild' });
+  g.next = { id: 0, hidden: true }; g.next[ob] = Object.assign({}, wireFace(ob, st.nb) || { c: 'w', v: 'wild' });
   if (typeof st.nf === 'string' && st.nf.length === 2) g.next = codeCard(st.nf);
   g.color = st.c; g.dir = st.d; g.turn = st.u; g.pending = st.k; g.stackMin = st.m; g.stackFrom = typeof st.sf === 'number' ? st.sf : -1; if (Array.isArray(st.dr)) { g.drawRunPi = st.dr[0]; g.drawRun = st.dr[1]; } g.flipBack = Array.isArray(st.fb) ? { pi: st.fb[0], seq: st.fb[1] } : null;
   g.roulette = st.o < 0 ? null : st.o; g.drewBy = st.w; g.winner = st.x < 0 ? null : st.x; g.seq = st.s;

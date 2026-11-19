@@ -1,4 +1,4 @@
-import { ATTACK_FACES, DRAW_VAL, faceName } from './cards.ts';
+import { ATTACK_FACES, ATTACK_VALS, DRAW_VAL, faceName } from './cards.ts';
 import type { Game } from './game.ts';
 
 // ---- the Horsemen: once per match, when anyone's debt reaches 70% of their limit, one rides in for 10 table turns ----
@@ -13,7 +13,6 @@ export const HORSE_TURNS = 10,
   HORSE_AT = 0.7,
   HORSE_AGAIN = 0.05,
   WAR_SECS = 4;
-export const ATTACK_VALS = { L: ['d1', 'd2', 'd4'], D: ['d5'] };
 export function horseOn(this: Game, k, v = null, pi = null) {
   const h = this.horse;
   if (pi != null && this.players[pi] && this.players[pi].fx && this.players[pi].fx.ward) return false;
